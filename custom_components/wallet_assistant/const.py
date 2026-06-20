@@ -112,7 +112,7 @@ def format_price_watch_services_config(services=DEFAULT_PRICE_WATCH_SERVICES) ->
 
 def parse_price_watch_services_config(value: str | None) -> list[dict[str, str | bool]]:
     """Parse editable price-watch service text into service dictionaries."""
-    if not value:
+    if value is None:
         value = format_price_watch_services_config()
 
     services = []
@@ -170,7 +170,7 @@ def format_promotion_platforms_config(platforms=DEFAULT_PROMOTION_PLATFORMS) -> 
 
 def parse_promotion_platforms_config(value: str | None) -> list[dict[str, str | bool]]:
     """Parse editable promotion platform text into platform dictionaries."""
-    if not value:
+    if value is None:
         value = format_promotion_platforms_config()
 
     platforms = []

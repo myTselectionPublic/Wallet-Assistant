@@ -11,19 +11,61 @@
     }
   },
   "options": {
+    "menu": {
+      "init": {
+        "price_watch_services": "Price-watch sites",
+        "promotion_platforms": "Promotion platforms",
+        "finish": "Save options"
+      }
+    },
     "step": {
       "init": {
         "title": "Wallet Assistant options",
-        "description": "Configure price-watch search services and promotion platforms. Price-watch services use one service per line as Name|URL, with {query} where the filter text should be inserted. Promotion platforms use one platform per line as id|name|enabled|base address|username|password.",
+        "description": "Choose what you want to configure."
+      },
+      "price_watch_services": {
+        "title": "Price-watch sites",
+        "description": "Choose a price-watch site to edit, or add a new one.",
         "data": {
-          "price_watch_services": "Price-watch services",
-          "promotion_platforms": "Promotion platforms"
+          "entry": "Price-watch site"
+        }
+      },
+      "price_watch_service": {
+        "title": "Price-watch site",
+        "description": "The URL template must include {query}, which is replaced with the dashboard filter text.",
+        "data": {
+          "name": "Name",
+          "url_template": "Search URL template",
+          "enabled": "Enabled",
+          "remove": "Remove this site"
+        }
+      },
+      "promotion_platforms": {
+        "title": "Promotion platforms",
+        "description": "Choose a promotion platform to edit, or add a new one.",
+        "data": {
+          "entry": "Promotion platform"
+        }
+      },
+      "promotion_platform": {
+        "title": "Promotion platform",
+        "description": "Credentials are saved in the integration options and used by platform adapters that support authentication.",
+        "data": {
+          "platform_id": "Platform ID",
+          "name": "Name",
+          "enabled": "Enabled",
+          "base_url": "Base address",
+          "username": "Username",
+          "password": "Password",
+          "remove": "Remove this platform"
         }
       }
     },
     "error": {
-      "invalid_price_watch_services": "Each enabled or disabled service line must use the documented service format and include the query placeholder.",
-      "invalid_promotion_platforms": "Each promotion platform line must use the documented platform format. Enabled platforms must include a valid base address."
+      "invalid_price_watch_url": "Enter a valid search URL template that includes the query placeholder.",
+      "invalid_platform_id": "Use only lowercase letters, numbers, and underscores.",
+      "invalid_platform_url": "Enabled platforms must include a valid base address.",
+      "missing_name": "Enter a name."
     }
   }
 }
