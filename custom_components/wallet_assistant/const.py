@@ -19,6 +19,7 @@ STORAGE_FILE = "wallet_assistant_items.json"
 SIGNAL_ITEMS_UPDATED = f"{DOMAIN}_items_updated"
 
 CONF_PRICE_WATCH_SERVICES = "price_watch_services"
+CONF_PROMOTION_PLATFORMS = "promotion_platforms"
 
 TYPE_LOYALTY = "loyalty"
 TYPE_VOUCHER = "voucher"
@@ -80,6 +81,25 @@ DEFAULT_PRICE_WATCH_SERVICES = (
     },
 )
 
+DEFAULT_PROMOTION_PLATFORMS = (
+    {
+        "platform_id": "benefits_at_work",
+        "name": "Benefits at Work",
+        "enabled": False,
+        "base_url": "https://agoria.benefitsatwork.be/login",
+        "username": "",
+        "password": "",
+    },
+    {
+        "platform_id": "edenred_engagement",
+        "name": "Edenred Engagement",
+        "enabled": False,
+        "base_url": "",
+        "username": "",
+        "password": "",
+    },
+)
+
 
 def format_price_watch_services_config(services=DEFAULT_PRICE_WATCH_SERVICES) -> str:
     """Format price-watch services as editable options text."""
@@ -126,3 +146,65 @@ def parse_price_watch_services_config(value: str | None) -> list[dict[str, str |
         )
 
     return services
+
+
+def format_promotion_platforms_config(platforms=DEFAULT_PROMOTION_PLATFORMS) -> str:
+    """Format promotion platform settings as editable options text."""
+    lines = []
+    for platform in platforms:
+        enabled = "enabled" if platform.get("enabled", False) else "disabled"
+        lines.append(
+            "|".join(
+                [
+                    str(platform.get("platform_id", "")),
+                    str(platform.get("name", "")),
+                    enabled,
+                    str(platform.get("base_url", "")),
+                    str(platform.get("username", "")),
+                    str(platform.get("password", "")),
+                ]
+            )
+        )
+    return "\n".join(lines)
+
+
+def parse_promotion_platforms_config(value: str | None) -> list[dict[str, str | bool]]:
+    """Parse editable promotion platform text into platform dictionaries."""
+    if not value:
+        value = format_promotion_platforms_config()
+
+    platforms = []
+    for raw_line in str(value).splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+
+        parts = [part.strip() for part in line.split("|")]
+        if len(parts) != 6:
+            continue
+
+        platform_id, name, enabled_value, base_url, username, password = parts
+        enabled = enabled_value.lower() in {"1", "true", "yes", "enabled", "on"}
+        if not _is_valid_platform_id(platform_id) or not name:
+            continue
+        if enabled and not base_url.startswith(("https://", "http://")):
+            continue
+
+        platforms.append(
+            {
+                "platform_id": platform_id,
+                "name": name,
+                "enabled": enabled,
+                "base_url": base_url,
+                "username": username,
+                "password": password,
+            }
+        )
+
+    return platforms
+
+
+def _is_valid_platform_id(value: str) -> bool:
+    return bool(value) and all(
+        char.islower() or char.isdigit() or char == "_" for char in value
+    )

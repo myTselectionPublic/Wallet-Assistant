@@ -14,14 +14,16 @@
     "step": {
       "init": {
         "title": "Wallet Assistant options",
-        "description": "Configure price-watch search services. Use one service per line as Name|URL, and include {query} where the filter text should be inserted. Prefix a line with # to disable it.",
+        "description": "Configure price-watch search services and promotion platforms. Price-watch services use one service per line as Name|URL, with {query} where the filter text should be inserted. Promotion platforms use one platform per line as id|name|enabled|base address|username|password.",
         "data": {
-          "price_watch_services": "Price-watch services"
+          "price_watch_services": "Price-watch services",
+          "promotion_platforms": "Promotion platforms"
         }
       }
     },
     "error": {
-      "invalid_price_watch_services": "Each enabled or disabled service line must use the documented service format and include the query placeholder."
+      "invalid_price_watch_services": "Each enabled or disabled service line must use the documented service format and include the query placeholder.",
+      "invalid_promotion_platforms": "Each promotion platform line must use the documented platform format. Enabled platforms must include a valid base address."
     }
   }
 }

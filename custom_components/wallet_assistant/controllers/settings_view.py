@@ -9,6 +9,7 @@ from ..const import (
     DOMAIN,
     parse_price_watch_services_config,
 )
+from ..services.promotion_platforms import get_promotion_platform_configs
 
 
 class WalletAssistantSettingsAPI(HomeAssistantView):
@@ -34,4 +35,12 @@ class WalletAssistantSettingsAPI(HomeAssistantView):
                 if service.get("enabled", True)
             ]
 
-        return self.json({"price_watch_services": enabled_services})
+        return self.json(
+            {
+                "price_watch_services": enabled_services,
+                "promotion_platforms": [
+                    platform.public_dict()
+                    for platform in get_promotion_platform_configs(self.hass)
+                ],
+            }
+        )

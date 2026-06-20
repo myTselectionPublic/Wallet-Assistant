@@ -176,6 +176,22 @@ function normalizeItem(item) {
   };
 }
 
+function normalizePromotion(promotion) {
+  return {
+    promotion_id: String(promotion?.promotion_id || ""),
+    platform_id: String(promotion?.platform_id || ""),
+    platform_name: String(promotion?.platform_name || ""),
+    title: String(promotion?.title || ""),
+    promotion: String(promotion?.promotion || ""),
+    description: String(promotion?.description || ""),
+    image_url: String(promotion?.image_url || ""),
+    item_url: String(promotion?.item_url || ""),
+    voucher_code: String(promotion?.voucher_code || ""),
+    valid_until: String(promotion?.valid_until || ""),
+    categories: Array.isArray(promotion?.categories) ? promotion.categories : []
+  };
+}
+
 function getCameraScanErrorMessage(error = null) {
   const protocol = window.location?.protocol || "";
   const hostname = window.location?.hostname || "";
@@ -262,6 +278,11 @@ class WalletAssistantCard extends HTMLElement {
     this.showAddDialog = false;
     this.cardViewMode = DEFAULT_CARD_VIEW_MODE;
     this.priceWatchServices = normalizePriceWatchServices();
+    this.promotionMatches = [];
+    this.promotionSearchQuery = "";
+    this.promotionsLoading = false;
+    this._promotionSearchTimer = null;
+    this._promotionSearchPromise = null;
     this._settingsLoaded = false;
     this._settingsLoadPromise = null;
     this._cardsLoaded = false;
@@ -302,11 +323,16 @@ class WalletAssistantCard extends HTMLElement {
       ?.addEventListener("input", (event) => {
         this.filterText = event.target.value;
         this.render();
+        this.schedulePromotionSearch();
       });
 
     this.toolbarContainer.querySelector("#clear-filter")
       ?.addEventListener("click", () => {
+        window.clearTimeout(this._promotionSearchTimer);
         this.filterText = "";
+        this.promotionMatches = [];
+        this.promotionSearchQuery = "";
+        this.promotionsLoading = false;
         this.render();
         this.toolbarContainer.querySelector("#filter")?.focus();
       });
@@ -363,11 +389,70 @@ class WalletAssistantCard extends HTMLElement {
     if (previousUserId !== hass?.user?.id) {
       this.loadSettings({ force: true });
       this.loadCards({ force: true });
+      this.schedulePromotionSearch();
     } else if (!this._cardsLoaded) {
       this.loadSettings();
       this.loadCards();
+      this.schedulePromotionSearch();
     } else if (!this._settingsLoaded) {
       this.loadSettings();
+      this.schedulePromotionSearch();
+    }
+  }
+
+  schedulePromotionSearch() {
+    const query = (this.filterText || "").trim();
+    window.clearTimeout(this._promotionSearchTimer);
+
+    if (query.length <= 3) {
+      this.promotionMatches = [];
+      this.promotionSearchQuery = "";
+      this.promotionsLoading = false;
+      return;
+    }
+
+    this._promotionSearchTimer = window.setTimeout(() => {
+      this.loadPromotionMatches(query);
+    }, 300);
+  }
+
+  async loadPromotionMatches(query) {
+    if (!this._hass) return;
+    const cleanQuery = String(query || "").trim();
+    if (cleanQuery.length <= 3) return;
+    if (this._promotionSearchPromise && this.promotionSearchQuery === cleanQuery) {
+      return this._promotionSearchPromise;
+    }
+
+    this.promotionSearchQuery = cleanQuery;
+    this.promotionsLoading = true;
+    this.render();
+
+    this._promotionSearchPromise = (async () => {
+      try {
+        const result = await this._hass.callApi(
+          "get",
+          `${API_PATH}/promotions/search?q=${encodeURIComponent(cleanQuery)}`
+        );
+        if ((this.filterText || "").trim() !== cleanQuery) return;
+        this.promotionMatches = (result?.promotions || []).map(normalizePromotion);
+      } catch (error) {
+        console.warn("Unable to search Wallet Assistant promotion platforms.", error);
+        if ((this.filterText || "").trim() === cleanQuery) {
+          this.promotionMatches = [];
+        }
+      } finally {
+        if ((this.filterText || "").trim() === cleanQuery) {
+          this.promotionsLoading = false;
+          this.render();
+        }
+      }
+    })();
+
+    try {
+      return await this._promotionSearchPromise;
+    } finally {
+      this._promotionSearchPromise = null;
     }
   }
 
@@ -821,6 +906,12 @@ class WalletAssistantCard extends HTMLElement {
     const selectedExpiry = this.selectedCard?.expires_on ? formatExpiry(this.selectedCard.expires_on) : "";
     const selectedNotes = this.selectedCard?.notes || "";
     const priceWatchQuery = (this.filterText || "").trim();
+    const promotionMatches = priceWatchQuery.length > 3
+      && this.promotionSearchQuery === priceWatchQuery
+      ? this.promotionMatches
+      : [];
+    const showPromotions = priceWatchQuery.length > 3
+      && (this.promotionsLoading || promotionMatches.length > 0);
     const priceWatchServices = priceWatchQuery.length > 3
       ? normalizePriceWatchServices(this.priceWatchServices)
       : [];
@@ -851,6 +942,45 @@ class WalletAssistantCard extends HTMLElement {
         `;
         }).join("") : `<div class="no-results">No matching items</div>`}
       </div>
+      ${showPromotions ? `
+        <section class="promotion-results-section" aria-label="Promotion platform results">
+          <h3>Promotions "${escapeHtml(priceWatchQuery)}"</h3>
+          ${this.promotionsLoading ? `<div class="promotion-results-status">Searching promotion platforms...</div>` : ""}
+          ${promotionMatches.length ? `
+            <div class="promotion-results-list">
+              ${promotionMatches.map(promotion => {
+                const promotionUrl = promotion.item_url || "#";
+                const hasLink = /^https?:\/\//i.test(promotionUrl);
+                const imageUrl = promotion.image_url;
+                return `
+                  <a
+                    class="promotion-result"
+                    href="${hasLink ? escapeHtml(promotionUrl) : "#"}"
+                    target="${hasLink ? "_blank" : ""}"
+                    rel="${hasLink ? "noopener noreferrer" : ""}"
+                    aria-label="${escapeHtml(promotion.title)}"
+                  >
+                    <div class="promotion-image-wrap">
+                      ${imageUrl
+                        ? `<img class="promotion-image" src="${escapeHtml(imageUrl)}" alt="" loading="lazy" />`
+                        : `<div class="promotion-image-placeholder"><ha-icon icon="mdi:ticket-percent"></ha-icon></div>`}
+                    </div>
+                    <div class="promotion-details">
+                      <strong>${escapeHtml(promotion.title)}</strong>
+                      <span>${escapeHtml(promotion.promotion || promotion.description)}</span>
+                      <small>
+                        ${escapeHtml(promotion.platform_name)}
+                        ${promotion.valid_until ? ` · Valid until ${escapeHtml(formatExpiry(promotion.valid_until))}` : ""}
+                      </small>
+                    </div>
+                    ${hasLink ? `<ha-icon class="promotion-open-icon" icon="mdi:open-in-new"></ha-icon>` : ""}
+                  </a>
+                `;
+              }).join("")}
+            </div>
+          ` : ""}
+        </section>
+      ` : ""}
       ${priceWatchServices.length ? `
         <section class="price-watch-section" aria-label="Price-watch searches">
           <h3>Price watch "${escapeHtml(priceWatchQuery)}"</h3>
@@ -936,6 +1066,15 @@ class WalletAssistantCard extends HTMLElement {
           ? "card-logo-placeholder popup-logo-placeholder"
           : "card-logo-placeholder";
         placeholder.textContent = img.dataset.initial || "?";
+        img.replaceWith(placeholder);
+      })
+    );
+
+    this.dynamicContainer.querySelectorAll(".promotion-image").forEach(img =>
+      img.addEventListener("error", () => {
+        const placeholder = document.createElement("div");
+        placeholder.className = "promotion-image-placeholder";
+        placeholder.innerHTML = `<ha-icon icon="mdi:ticket-percent"></ha-icon>`;
         img.replaceWith(placeholder);
       })
     );

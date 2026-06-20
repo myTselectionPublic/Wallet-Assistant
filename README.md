@@ -79,6 +79,20 @@ Service name|https://example.com/search?q={query}
 
 `{query}` is replaced with the current filter text.
 
+## Promotion Platforms
+
+Wallet Assistant includes a generic promotion-platform search pipeline. When the dashboard filter contains more than 3 characters, the frontend calls the integration backend and can show normalized external promotions below the matching cards.
+
+Promotion platform options use one platform per line:
+
+```text
+platform_id|Platform name|enabled|base address|username|password
+benefits_at_work|Benefits at Work|disabled|https://agoria.benefitsatwork.be/login||
+edenred_engagement|Edenred Engagement|disabled|||
+```
+
+Adapters normalize external data into a shared promotion structure with a title, promotion text, image URL, platform link, optional voucher code, validity dates, and categories. The Benefits at Work and Edenred entries are currently configured as adapter placeholders until their authenticated API or export format is known.
+
 ## Dashboard Resource
 
 The dashboard card is built into `custom_components/wallet_assistant/frontend/wallet-assistant-card.js`, served by the integration at `/wallet_assistant_static/wallet-assistant-card.js`, and automatically registered as a Lovelace module resource.
