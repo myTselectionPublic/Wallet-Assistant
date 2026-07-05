@@ -6,12 +6,12 @@ import logging
 
 from homeassistant.core import HomeAssistant
 
-from ....const import (
+from ...const import (
     CONF_PROMOTION_PLATFORMS,
     DOMAIN,
     parse_promotion_platforms_config,
 )
-from ....models.promotion import Promotion
+from ...models.promotion import Promotion
 from .base import BasePromotionPlatform, PromotionPlatformConfig
 from .platforms import get_platform_adapter
 
@@ -90,6 +90,30 @@ class PromotionPlatformRegistry:
         }
         self.hass.data.setdefault(DOMAIN, {})[PROMOTION_CACHE] = cache
         return cache
+
+    def prune_disabled_platforms(self) -> dict:
+        """Remove cached data for platforms that are no longer enabled."""
+        enabled_platform_ids = {
+            config.platform_id
+            for config in get_promotion_platform_configs(self.hass)
+            if config.enabled
+        }
+        cache = self.cached_data
+        pruned_cache = {
+            "updated_at": cache.get("updated_at", ""),
+            "platforms": [
+                platform
+                for platform in cache.get("platforms", [])
+                if str(platform.get("platform_id", "")) in enabled_platform_ids
+            ],
+            "promotions": [
+                promotion
+                for promotion in cache.get("promotions", [])
+                if str(promotion.get("platform_id", "")) in enabled_platform_ids
+            ],
+        }
+        self.hass.data.setdefault(DOMAIN, {})[PROMOTION_CACHE] = pruned_cache
+        return pruned_cache
 
     @property
     def cached_data(self) -> dict:

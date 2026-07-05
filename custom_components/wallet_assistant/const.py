@@ -17,6 +17,7 @@ FRONTEND_PATH = "/wallet_assistant_static/wallet-assistant-card.js"
 STORAGE_FILE = "wallet_assistant_items.json"
 
 SIGNAL_ITEMS_UPDATED = f"{DOMAIN}_items_updated"
+SIGNAL_PROMOTION_PLATFORMS_UPDATED = f"{DOMAIN}_promotion_platforms_updated"
 
 CONF_PRICE_WATCH_SERVICES = "price_watch_services"
 CONF_PROMOTION_PLATFORMS = "promotion_platforms"

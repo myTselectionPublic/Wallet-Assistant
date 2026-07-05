@@ -6,6 +6,7 @@ from pathlib import Path
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_ID, CONF_URL
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers import config_validation as cv
 from homeassistant.setup import async_setup_component
 
@@ -29,7 +30,14 @@ from .api import (
     WalletAssistantPromotionsAPI,
     WalletAssistantSettingsAPI,
 )
-from .const import DOMAIN, FRONTEND_PATH, PLATFORMS, VERSION
+from .const import (
+    DOMAIN,
+    FRONTEND_PATH,
+    PLATFORMS,
+    SIGNAL_PROMOTION_PLATFORMS_UPDATED,
+    VERSION,
+)
+from .services.promotion_platforms import PromotionPlatformRegistry
 from .services.storage import WalletStorage
 
 _LOGGER = logging.getLogger(__name__)
@@ -44,6 +52,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await _async_setup_once(hass)
+    entry.async_on_unload(entry.add_update_listener(_async_options_updated))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 
@@ -70,6 +79,15 @@ async def _async_setup_once(hass: HomeAssistant) -> None:
     hass.http.register_view(WalletAssistantItemAPI(hass))
 
     hass.data[DOMAIN]["setup_complete"] = True
+
+
+async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Refresh derived promotion-platform state when options change."""
+    registry = PromotionPlatformRegistry(hass)
+    cache = registry.prune_disabled_platforms()
+    async_dispatcher_send(hass, SIGNAL_PROMOTION_PLATFORMS_UPDATED, cache)
+    cache = await registry.async_refresh()
+    async_dispatcher_send(hass, SIGNAL_PROMOTION_PLATFORMS_UPDATED, cache)
 
 
 async def _async_register_frontend(hass: HomeAssistant) -> None:
