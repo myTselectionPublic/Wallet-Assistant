@@ -26,7 +26,6 @@ FIELD_URL_TEMPLATE = "url_template"
 FIELD_USERNAME = "username"
 
 ADD_ENTRY = "__add__"
-SECTION_FINISH = "finish"
 SECTION_PRICE_WATCH = "price_watch_services"
 SECTION_PROMOTIONS = "promotion_platforms"
 
@@ -67,7 +66,7 @@ class WalletAssistantOptionsFlow(config_entries.OptionsFlow):
                 return await self.async_step_price_watch_services()
             if selected == SECTION_PROMOTIONS:
                 return await self.async_step_promotion_platforms()
-            return await self.async_step_finish()
+            return await self.async_step_init()
 
         return self.async_show_form(
             step_id="init",
@@ -84,19 +83,12 @@ class WalletAssistantOptionsFlow(config_entries.OptionsFlow):
                                     "value": SECTION_PROMOTIONS,
                                     "label": "Promotion platforms",
                                 },
-                                {
-                                    "value": SECTION_FINISH,
-                                    "label": "Save options",
-                                },
                             ]
                         )
                     )
                 }
             ),
         )
-
-    async def async_step_finish(self, user_input=None):
-        return self._create_options_entry()
 
     async def async_step_price_watch_services(self, user_input=None):
         if user_input is not None:
