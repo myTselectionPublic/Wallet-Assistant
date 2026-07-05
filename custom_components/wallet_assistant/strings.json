@@ -1,71 +1,71 @@
 {
   "config": {
-    "step": {
-      "user": {
-        "title": "Wallet Assistant",
-        "description": "Set up Wallet Assistant for loyalty cards, vouchers, and promotions."
-      }
-    },
     "abort": {
       "already_configured": "Wallet Assistant is already configured."
+    },
+    "step": {
+      "user": {
+        "description": "Set up Wallet Assistant for loyalty cards, vouchers, and promotions.",
+        "title": "Wallet Assistant"
+      }
     }
   },
   "options": {
+    "error": {
+      "invalid_platform_id": "Use only lowercase letters, numbers, and underscores.",
+      "invalid_platform_url": "Enabled platforms must include a valid base address.",
+      "invalid_price_watch_url": "Enter a valid search URL template that includes the query placeholder.",
+      "missing_name": "Enter a name."
+    },
     "step": {
       "init": {
-        "title": "Wallet Assistant options",
-        "description": "Choose what you want to configure.",
         "data": {
           "section": "Configuration area"
         },
+        "description": "Choose what you want to configure.",
         "menu_options": {
           "price_watch_services": "Price-watch sites",
           "promotion_platforms": "Promotion platforms"
-        }
-      },
-      "price_watch_services": {
-        "title": "Price-watch sites",
-        "description": "Choose a price-watch site to edit, or add a new one. Changes are saved when you submit the site.",
-        "data": {
-          "entry": "Price-watch site"
-        }
+        },
+        "title": "Wallet Assistant options"
       },
       "price_watch_service": {
-        "title": "Price-watch site",
-        "description": "The URL template must include {query}, which is replaced with the dashboard filter text.",
         "data": {
-          "name": "Name",
-          "url_template": "Search URL template",
           "enabled": "Enabled",
-          "remove": "Remove this site"
-        }
+          "name": "Name",
+          "remove": "Remove this site",
+          "url_template": "Search URL template"
+        },
+        "description": "The URL template must include {query}, which is replaced with the dashboard filter text.",
+        "title": "Price-watch site"
       },
-      "promotion_platforms": {
-        "title": "Promotion platforms",
-        "description": "Choose a promotion platform to edit, or add a new one. Changes are saved when you submit the platform.",
+      "price_watch_services": {
         "data": {
-          "entry": "Promotion platform"
-        }
+          "entry": "Price-watch site"
+        },
+        "description": "Choose a price-watch site to edit, or add a new one. Changes are saved when you submit the site.",
+        "title": "Price-watch sites"
       },
       "promotion_platform": {
-        "title": "Promotion platform",
-        "description": "Credentials are saved in the integration options and used by platform adapters that support authentication.",
         "data": {
-          "platform_id": "Platform ID",
-          "name": "Name",
-          "enabled": "Enabled",
           "base_url": "Login or base address",
-          "username": "Username",
+          "enabled": "Enabled",
+          "name": "Name",
           "password": "Password",
-          "remove": "Remove this platform"
-        }
+          "platform_id": "Platform ID",
+          "remove": "Remove this platform",
+          "username": "Username"
+        },
+        "description": "Credentials are saved in the integration options and used by platform adapters that support authentication.",
+        "title": "Promotion platform"
+      },
+      "promotion_platforms": {
+        "data": {
+          "entry": "Promotion platform"
+        },
+        "description": "Choose a promotion platform to edit, or add a new one. Changes are saved when you submit the platform.",
+        "title": "Promotion platforms"
       }
-    },
-    "error": {
-      "invalid_price_watch_url": "Enter a valid search URL template that includes the query placeholder.",
-      "invalid_platform_id": "Use only lowercase letters, numbers, and underscores.",
-      "invalid_platform_url": "Enabled platforms must include a valid base address.",
-      "missing_name": "Enter a name."
     }
   }
 }

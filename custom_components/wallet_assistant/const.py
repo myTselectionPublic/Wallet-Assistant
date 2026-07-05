@@ -101,6 +101,25 @@ DEFAULT_PROMOTION_PLATFORMS = (
     },
 )
 
+DEFAULT_PROMOTION_PLATFORMS = (
+    {
+        "platform_id": "benefits_at_work",
+        "name": "Benefits at Work",
+        "enabled": False,
+        "base_url": "https://agoria.benefitsatwork.be/login",
+        "username": "",
+        "password": "",
+    },
+    {
+        "platform_id": "edenred_engagement",
+        "name": "Edenred Engagement",
+        "enabled": False,
+        "base_url": "",
+        "username": "",
+        "password": "",
+    },
+)
+
 
 def format_price_watch_services_config(services=DEFAULT_PRICE_WATCH_SERVICES) -> str:
     """Format price-watch services as editable options text."""

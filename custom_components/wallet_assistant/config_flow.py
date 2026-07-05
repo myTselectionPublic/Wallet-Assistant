@@ -26,6 +26,7 @@ FIELD_URL_TEMPLATE = "url_template"
 FIELD_USERNAME = "username"
 
 ADD_ENTRY = "__add__"
+SECTION_FINISH = "finish"
 SECTION_PRICE_WATCH = "price_watch_services"
 SECTION_PROMOTIONS = "promotion_platforms"
 
