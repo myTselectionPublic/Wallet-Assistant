@@ -70,12 +70,7 @@ Wallet Assistant stores items in `wallet_assistant_items.json` in the Home Assis
 
 When the dashboard filter contains more than 3 characters, Wallet Assistant shows quick links below the filtered items for external product and price-watch searches.
 
-The default services are Google Shopping, Hagglezon, Tweakers Pricewatch, MaxSpar, Idealo France, Geizhals, and Kieskeurig. To customize them, open **Settings > Devices & services > Wallet Assistant > Configure** and edit one service per line:
-
-```text
-Service name|https://example.com/search?q={query}
-# Disabled service|https://example.com/search?q={query}
-```
+The default services are Google Shopping, Hagglezon, Tweakers Pricewatch, MaxSpar, Idealo France, Geizhals, and Kieskeurig. To customize them, open **Settings > Devices & services > Wallet Assistant > Configure > Price-watch sites**. From there you can add, edit, disable, or remove a site. Each site has a name, an enabled toggle, and a search URL template.
 
 `{query}` is replaced with the current filter text.
 
@@ -83,13 +78,7 @@ Service name|https://example.com/search?q={query}
 
 Wallet Assistant includes a generic promotion-platform search pipeline. When the dashboard filter contains more than 3 characters, the frontend calls the integration backend and can show normalized external promotions below the matching cards.
 
-Promotion platform options use one platform per line:
-
-```text
-platform_id|Platform name|enabled|base address|username|password
-benefits_at_work|Benefits at Work|disabled|https://agoria.benefitsatwork.be/login||
-edenred_engagement|Edenred Engagement|disabled|||
-```
+Promotion platforms are configured from **Settings > Devices & services > Wallet Assistant > Configure > Promotion platforms**. Each platform has a platform ID, name, enabled toggle, base address, username, and password.
 
 Adapters normalize external data into a shared promotion structure with a title, promotion text, image URL, platform link, optional voucher code, validity dates, and categories. The Benefits at Work and Edenred entries are currently configured as adapter placeholders until their authenticated API or export format is known.
 
