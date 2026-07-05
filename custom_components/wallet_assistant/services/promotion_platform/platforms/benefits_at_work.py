@@ -7,7 +7,7 @@ from urllib.parse import urljoin, urlparse, urlunparse
 
 import aiohttp
 
-from .....models.promotion import Promotion
+from ....models.promotion import Promotion
 from ..base import BasePromotionPlatform
 from ..utils import clean_text, first_meaningful_text, join_text, stable_id
 
