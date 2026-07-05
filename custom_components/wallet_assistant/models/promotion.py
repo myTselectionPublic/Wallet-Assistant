@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import unicodedata
 
 
 @dataclass(slots=True)
@@ -37,18 +38,47 @@ class Promotion:
         }
 
     def matches(self, query: str) -> bool:
-        normalized_query = query.strip().lower()
+        normalized_query = _normalize_search_text(query)
         if not normalized_query:
             return False
 
-        haystack = " ".join(
+        haystack = _normalize_search_text(
+            " ".join(
+                [
+                    self.title,
+                    self.promotion,
+                    self.description,
+                    self.platform_name,
+                    self.voucher_code,
+                    self.item_url,
+                    " ".join(self.categories),
+                ]
+            )
+        )
+        compact_query = normalized_query.replace(" ", "")
+        compact_haystack = haystack.replace(" ", "")
+
+        if normalized_query in haystack or compact_query in compact_haystack:
+            return True
+
+        return all(
+            token in haystack or token in compact_haystack
+            for token in normalized_query.split()
+        )
+
+
+def _normalize_search_text(value: str) -> str:
+    normalized = unicodedata.normalize("NFKD", str(value or ""))
+    ascii_text = "".join(
+        char
+        for char in normalized
+        if not unicodedata.combining(char)
+    ).lower()
+    return " ".join(
+        "".join(
             [
-                self.title,
-                self.promotion,
-                self.description,
-                self.platform_name,
-                self.voucher_code,
-                " ".join(self.categories),
+                char if char.isalnum() else " "
+                for char in ascii_text
             ]
-        ).lower()
-        return normalized_query in haystack
+        ).split()
+    )

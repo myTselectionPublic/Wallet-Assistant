@@ -20,6 +20,7 @@ const CODE_VIEWS = new Set([DEFAULT_VIEW, "qr"]);
 const DEFAULT_CARD_VIEW_MODE = "grid";
 const CARD_VIEW_MODES = new Set([DEFAULT_CARD_VIEW_MODE, "list"]);
 const CARD_LOAD_RETRY_MS = 30_000;
+const PROMOTION_SEARCH_MIN_LENGTH = 3;
 const DEFAULT_PRICE_WATCH_SERVICES = [
   {
     name: "Google Shopping",
@@ -283,6 +284,7 @@ class WalletAssistantCard extends HTMLElement {
     this.promotionsLoading = false;
     this._promotionSearchTimer = null;
     this._promotionSearchPromise = null;
+    this._promotionSearchPromiseQuery = "";
     this._settingsLoaded = false;
     this._settingsLoadPromise = null;
     this._cardsLoaded = false;
@@ -404,29 +406,37 @@ class WalletAssistantCard extends HTMLElement {
     const query = (this.filterText || "").trim();
     window.clearTimeout(this._promotionSearchTimer);
 
-    if (query.length <= 3) {
+    if (query.length < PROMOTION_SEARCH_MIN_LENGTH) {
       this.promotionMatches = [];
       this.promotionSearchQuery = "";
       this.promotionsLoading = false;
       return;
     }
 
+    if (this.promotionSearchQuery !== query) {
+      this.promotionMatches = [];
+      this.promotionSearchQuery = query;
+    }
+    this.promotionsLoading = true;
+    this.render();
+
     this._promotionSearchTimer = window.setTimeout(() => {
       this.loadPromotionMatches(query);
-    }, 300);
+    }, query.length === PROMOTION_SEARCH_MIN_LENGTH ? 0 : 300);
   }
 
   async loadPromotionMatches(query) {
     if (!this._hass) return;
     const cleanQuery = String(query || "").trim();
-    if (cleanQuery.length <= 3) return;
-    if (this._promotionSearchPromise && this.promotionSearchQuery === cleanQuery) {
+    if (cleanQuery.length < PROMOTION_SEARCH_MIN_LENGTH) return;
+    if (this._promotionSearchPromise && this._promotionSearchPromiseQuery === cleanQuery) {
       return this._promotionSearchPromise;
     }
 
     this.promotionSearchQuery = cleanQuery;
     this.promotionsLoading = true;
     this.render();
+    this._promotionSearchPromiseQuery = cleanQuery;
 
     this._promotionSearchPromise = (async () => {
       try {
@@ -453,6 +463,7 @@ class WalletAssistantCard extends HTMLElement {
       return await this._promotionSearchPromise;
     } finally {
       this._promotionSearchPromise = null;
+      this._promotionSearchPromiseQuery = "";
     }
   }
 
@@ -906,13 +917,14 @@ class WalletAssistantCard extends HTMLElement {
     const selectedExpiry = this.selectedCard?.expires_on ? formatExpiry(this.selectedCard.expires_on) : "";
     const selectedNotes = this.selectedCard?.notes || "";
     const priceWatchQuery = (this.filterText || "").trim();
-    const promotionMatches = priceWatchQuery.length > 3
+    const showPlatformSearch = priceWatchQuery.length >= PROMOTION_SEARCH_MIN_LENGTH;
+    const promotionMatches = showPlatformSearch
       && this.promotionSearchQuery === priceWatchQuery
       ? this.promotionMatches
       : [];
-    const showPromotions = priceWatchQuery.length > 3
-      && (this.promotionsLoading || promotionMatches.length > 0);
-    const priceWatchServices = priceWatchQuery.length > 3
+    const showPromotions = showPlatformSearch
+      && (this.promotionsLoading || this.promotionSearchQuery === priceWatchQuery || promotionMatches.length > 0);
+    const priceWatchServices = showPlatformSearch
       ? normalizePriceWatchServices(this.priceWatchServices)
       : [];
 
@@ -945,7 +957,7 @@ class WalletAssistantCard extends HTMLElement {
       ${showPromotions ? `
         <section class="promotion-results-section" aria-label="Promotion platform results">
           <h3>Promotions "${escapeHtml(priceWatchQuery)}"</h3>
-          ${this.promotionsLoading ? `<div class="promotion-results-status">Searching promotion platforms...</div>` : ""}
+          ${this.promotionsLoading ? `<div class="promotion-results-status">Searching cached promotions...</div>` : ""}
           ${promotionMatches.length ? `
             <div class="promotion-results-list">
               ${promotionMatches.map(promotion => {

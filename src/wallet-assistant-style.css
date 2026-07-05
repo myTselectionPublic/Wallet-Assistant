@@ -432,10 +432,13 @@ ha-icon {
 }
 
 .promotion-results-section {
-	flex: 0 0 auto;
+	flex: 0 1 auto;
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
+	min-height: 0;
+	max-height: min(48vh, 420px);
+	overflow: hidden;
 	margin-top: 8px;
 	padding-top: 10px;
 	border-top: 1px solid #ddd;
@@ -456,9 +459,16 @@ ha-icon {
 }
 
 .promotion-results-list {
+	flex: 0 1 auto;
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+	align-content: start;
 	gap: 8px;
+	min-height: 0;
+	max-height: 100%;
+	overflow-y: auto;
+	padding-right: 2px;
+	scrollbar-gutter: stable;
 }
 
 .promotion-result {
