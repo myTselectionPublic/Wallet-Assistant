@@ -62,7 +62,7 @@
           "platform_id": "Platform ID",
           "name": "Name",
           "enabled": "Enabled",
-          "base_url": "Base address",
+          "base_url": "Login or base address",
           "username": "Username",
           "password": "Password",
           "remove": "Remove this platform"
