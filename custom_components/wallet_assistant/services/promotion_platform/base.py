@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from homeassistant.core import HomeAssistant
 
-from ....models.promotion import Promotion
+from ...models.promotion import Promotion
 
 
 @dataclass(slots=True)

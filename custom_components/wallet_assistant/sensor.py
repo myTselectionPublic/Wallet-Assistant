@@ -8,7 +8,12 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DEFAULT_EXPIRY_WARNING_DAYS, DOMAIN, SIGNAL_ITEMS_UPDATED
+from .const import (
+    DEFAULT_EXPIRY_WARNING_DAYS,
+    DOMAIN,
+    SIGNAL_ITEMS_UPDATED,
+    SIGNAL_PROMOTION_PLATFORMS_UPDATED,
+)
 from .services.promotion_platforms import PromotionPlatformRegistry
 from .services.storage import WalletStorage
 
@@ -80,8 +85,25 @@ class PromotionPlatformPromotionsSensor(SensorEntity):
             "promotions": [],
         }
 
+    async def async_added_to_hass(self) -> None:
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self.hass,
+                SIGNAL_PROMOTION_PLATFORMS_UPDATED,
+                self._handle_promotion_platforms_updated,
+            )
+        )
+
     async def async_update(self) -> None:
         cache = await self.registry.async_refresh()
+        self._set_cache(cache)
+
+    @callback
+    def _handle_promotion_platforms_updated(self, cache: dict) -> None:
+        self._set_cache(cache)
+        self.async_write_ha_state()
+
+    def _set_cache(self, cache: dict) -> None:
         promotions = cache.get("promotions", [])
         self._attr_native_value = len(promotions)
         self._attr_extra_state_attributes = {
