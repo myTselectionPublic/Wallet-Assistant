@@ -11,13 +11,6 @@
     }
   },
   "options": {
-    "menu": {
-      "init": {
-        "price_watch_services": "Price-watch sites",
-        "promotion_platforms": "Promotion platforms",
-        "finish": "Save options"
-      }
-    },
     "step": {
       "init": {
         "title": "Wallet Assistant options",
