@@ -3,14 +3,13 @@ from __future__ import annotations
 import voluptuous as vol
 
 from homeassistant import config_entries
+from homeassistant.helpers import selector
 
 from .const import (
     CONF_PROMOTION_PLATFORMS,
     CONF_PRICE_WATCH_SERVICES,
     DOMAIN,
     NAME,
-    format_promotion_platforms_config,
-    format_price_watch_services_config,
     parse_promotion_platforms_config,
     parse_price_watch_services_config,
 )
@@ -22,10 +21,14 @@ FIELD_NAME = "name"
 FIELD_PASSWORD = "password"
 FIELD_PLATFORM_ID = "platform_id"
 FIELD_REMOVE = "remove"
+FIELD_SECTION = "section"
 FIELD_URL_TEMPLATE = "url_template"
 FIELD_USERNAME = "username"
 
 ADD_ENTRY = "__add__"
+SECTION_FINISH = "finish"
+SECTION_PRICE_WATCH = "price_watch_services"
+SECTION_PROMOTIONS = "promotion_platforms"
 
 
 class WalletAssistantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -58,27 +61,42 @@ class WalletAssistantOptionsFlow(config_entries.OptionsFlow):
         self._selected_platform_index: int | None = None
 
     async def async_step_init(self, user_input=None):
-        return self.async_show_menu(
+        if user_input is not None:
+            selected = user_input[FIELD_SECTION]
+            if selected == SECTION_PRICE_WATCH:
+                return await self.async_step_price_watch_services()
+            if selected == SECTION_PROMOTIONS:
+                return await self.async_step_promotion_platforms()
+            return await self.async_step_finish()
+
+        return self.async_show_form(
             step_id="init",
-            menu_options=[
-                "price_watch_services",
-                "promotion_platforms",
-                "finish",
-            ],
+            data_schema=vol.Schema(
+                {
+                    vol.Required(FIELD_SECTION): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=[
+                                {
+                                    "value": SECTION_PRICE_WATCH,
+                                    "label": "Price-watch sites",
+                                },
+                                {
+                                    "value": SECTION_PROMOTIONS,
+                                    "label": "Promotion platforms",
+                                },
+                                {
+                                    "value": SECTION_FINISH,
+                                    "label": "Save options",
+                                },
+                            ]
+                        )
+                    )
+                }
+            ),
         )
 
     async def async_step_finish(self, user_input=None):
-        return self.async_create_entry(
-            title="",
-            data={
-                CONF_PRICE_WATCH_SERVICES: format_price_watch_services_config(
-                    self._price_watch_services
-                ),
-                CONF_PROMOTION_PLATFORMS: format_promotion_platforms_config(
-                    self._promotion_platforms
-                ),
-            },
-        )
+        return self._create_options_entry()
 
     async def async_step_price_watch_services(self, user_input=None):
         if user_input is not None:
@@ -92,14 +110,16 @@ class WalletAssistantOptionsFlow(config_entries.OptionsFlow):
             step_id="price_watch_services",
             data_schema=vol.Schema(
                 {
-                    vol.Required(FIELD_ENTRY): vol.In(
-                        _entry_choices(
-                            self._price_watch_services,
-                            add_label="Add new price-watch site",
-                            label_fn=lambda service: (
-                                f"{service['name']} "
-                                f"({'enabled' if service.get('enabled', True) else 'disabled'})"
-                            ),
+                    vol.Required(FIELD_ENTRY): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=_entry_options(
+                                self._price_watch_services,
+                                add_label="Add new price-watch site",
+                                label_fn=lambda service: (
+                                    f"{service['name']} "
+                                    f"({'enabled' if service.get('enabled', True) else 'disabled'})"
+                                ),
+                            )
                         )
                     )
                 }
@@ -114,7 +134,7 @@ class WalletAssistantOptionsFlow(config_entries.OptionsFlow):
             if user_input.get(FIELD_REMOVE):
                 if self._selected_price_watch_index is not None:
                     self._price_watch_services.pop(self._selected_price_watch_index)
-                return await self.async_step_price_watch_services()
+                return self._create_options_entry()
 
             name = user_input[FIELD_NAME].strip()
             url_template = user_input[FIELD_URL_TEMPLATE].strip()
@@ -135,7 +155,7 @@ class WalletAssistantOptionsFlow(config_entries.OptionsFlow):
                     self._price_watch_services.append(updated)
                 else:
                     self._price_watch_services[self._selected_price_watch_index] = updated
-                return await self.async_step_price_watch_services()
+                return self._create_options_entry()
 
         return self.async_show_form(
             step_id="price_watch_service",
@@ -169,14 +189,16 @@ class WalletAssistantOptionsFlow(config_entries.OptionsFlow):
             step_id="promotion_platforms",
             data_schema=vol.Schema(
                 {
-                    vol.Required(FIELD_ENTRY): vol.In(
-                        _entry_choices(
-                            self._promotion_platforms,
-                            add_label="Add new promotion platform",
-                            label_fn=lambda platform: (
-                                f"{platform['name']} "
-                                f"({'enabled' if platform.get('enabled', False) else 'disabled'})"
-                            ),
+                    vol.Required(FIELD_ENTRY): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=_entry_options(
+                                self._promotion_platforms,
+                                add_label="Add new promotion platform",
+                                label_fn=lambda platform: (
+                                    f"{platform['name']} "
+                                    f"({'enabled' if platform.get('enabled', False) else 'disabled'})"
+                                ),
+                            )
                         )
                     )
                 }
@@ -191,7 +213,7 @@ class WalletAssistantOptionsFlow(config_entries.OptionsFlow):
             if user_input.get(FIELD_REMOVE):
                 if self._selected_platform_index is not None:
                     self._promotion_platforms.pop(self._selected_platform_index)
-                return await self.async_step_promotion_platforms()
+                return self._create_options_entry()
 
             platform_id = user_input[FIELD_PLATFORM_ID].strip()
             name = user_input[FIELD_NAME].strip()
@@ -220,7 +242,7 @@ class WalletAssistantOptionsFlow(config_entries.OptionsFlow):
                     self._promotion_platforms.append(updated)
                 else:
                     self._promotion_platforms[self._selected_platform_index] = updated
-                return await self.async_step_promotion_platforms()
+                return self._create_options_entry()
 
         return self.async_show_form(
             step_id="promotion_platform",
@@ -256,11 +278,23 @@ class WalletAssistantOptionsFlow(config_entries.OptionsFlow):
             errors=errors,
         )
 
+    def _create_options_entry(self):
+        return self.async_create_entry(
+            title="",
+            data={
+                CONF_PRICE_WATCH_SERVICES: self._price_watch_services,
+                CONF_PROMOTION_PLATFORMS: self._promotion_platforms,
+            },
+        )
 
-def _entry_choices(items: list[dict], add_label: str, label_fn) -> dict[str, str]:
-    choices = {ADD_ENTRY: add_label}
-    choices.update({str(index): label_fn(item) for index, item in enumerate(items)})
-    return choices
+
+def _entry_options(items: list[dict], add_label: str, label_fn) -> list[dict[str, str]]:
+    options = [{"value": ADD_ENTRY, "label": add_label}]
+    options.extend(
+        {"value": str(index), "label": label_fn(item)}
+        for index, item in enumerate(items)
+    )
+    return options
 
 
 def _get_selected(items: list[dict], index: int | None) -> dict:

@@ -110,10 +110,24 @@ def format_price_watch_services_config(services=DEFAULT_PRICE_WATCH_SERVICES) ->
     return "\n".join(lines)
 
 
-def parse_price_watch_services_config(value: str | None) -> list[dict[str, str | bool]]:
+def parse_price_watch_services_config(value) -> list[dict[str, str | bool]]:
     """Parse editable price-watch service text into service dictionaries."""
     if value is None:
         value = format_price_watch_services_config()
+
+    if isinstance(value, list):
+        return [
+            {
+                "name": str(service.get("name", "")).strip(),
+                "url_template": str(service.get("url_template", "")).strip(),
+                "enabled": bool(service.get("enabled", True)),
+            }
+            for service in value
+            if isinstance(service, dict)
+            and str(service.get("name", "")).strip()
+            and "{query}" in str(service.get("url_template", ""))
+            and str(service.get("url_template", "")).startswith(("https://", "http://"))
+        ]
 
     services = []
     for raw_line in str(value).splitlines():
@@ -168,10 +182,37 @@ def format_promotion_platforms_config(platforms=DEFAULT_PROMOTION_PLATFORMS) -> 
     return "\n".join(lines)
 
 
-def parse_promotion_platforms_config(value: str | None) -> list[dict[str, str | bool]]:
+def parse_promotion_platforms_config(value) -> list[dict[str, str | bool]]:
     """Parse editable promotion platform text into platform dictionaries."""
     if value is None:
         value = format_promotion_platforms_config()
+
+    if isinstance(value, list):
+        platforms = []
+        for platform in value:
+            if not isinstance(platform, dict):
+                continue
+
+            platform_id = str(platform.get("platform_id", "")).strip()
+            name = str(platform.get("name", "")).strip()
+            enabled = bool(platform.get("enabled", False))
+            base_url = str(platform.get("base_url", "")).strip()
+            if not _is_valid_platform_id(platform_id) or not name:
+                continue
+            if enabled and not base_url.startswith(("https://", "http://")):
+                continue
+
+            platforms.append(
+                {
+                    "platform_id": platform_id,
+                    "name": name,
+                    "enabled": enabled,
+                    "base_url": base_url,
+                    "username": str(platform.get("username", "")).strip(),
+                    "password": str(platform.get("password", "")),
+                }
+            )
+        return platforms
 
     platforms = []
     for raw_line in str(value).splitlines():

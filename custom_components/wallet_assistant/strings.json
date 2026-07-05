@@ -21,11 +21,19 @@
     "step": {
       "init": {
         "title": "Wallet Assistant options",
-        "description": "Choose what you want to configure."
+        "description": "Choose what you want to configure.",
+        "data": {
+          "section": "Configuration area"
+        },
+        "menu_options": {
+          "price_watch_services": "Price-watch sites",
+          "promotion_platforms": "Promotion platforms",
+          "finish": "Save options"
+        }
       },
       "price_watch_services": {
         "title": "Price-watch sites",
-        "description": "Choose a price-watch site to edit, or add a new one.",
+        "description": "Choose a price-watch site to edit, or add a new one. Changes are saved when you submit the site.",
         "data": {
           "entry": "Price-watch site"
         }
@@ -42,7 +50,7 @@
       },
       "promotion_platforms": {
         "title": "Promotion platforms",
-        "description": "Choose a promotion platform to edit, or add a new one.",
+        "description": "Choose a promotion platform to edit, or add a new one. Changes are saved when you submit the platform.",
         "data": {
           "entry": "Promotion platform"
         }
