@@ -54,7 +54,7 @@ So I started with the Card Wallet code and extended it.
 * Support for promotion platform vouchers
   * Edenred platform: enter edenred platform credentials
   * Benefits at work platform: enter platform credentials
-  * All promotions of the platform will be downloaded/refreshed once a day and stored in sensor attributes
+  * All promotions of the platform will be downloaded/refreshed once a week and stored in sensor attributes
   * When searching on the wallet assistant dashboard, all possible matches of the promotion platforms will be shown immediately
 
 ## Installation

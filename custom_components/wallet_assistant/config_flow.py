@@ -22,7 +22,6 @@ FIELD_MOVE_DOWN = "move_down"
 FIELD_MOVE_UP = "move_up"
 FIELD_NAME = "name"
 FIELD_PASSWORD = "password"
-FIELD_PLATFORM_ID = "platform_id"
 FIELD_REMOVE = "remove"
 FIELD_SECTION = "section"
 FIELD_URL_TEMPLATE = "url_template"
@@ -110,11 +109,11 @@ class WalletAssistantOptionsFlow(config_entries.OptionsFlow):
                         selector.SelectSelectorConfig(
                             options=_entry_options(
                                 self._price_watch_services,
-                                add_label="Add new price-watch site",
                                 label_fn=lambda service: (
                                     f"{service['name']} "
                                     f"({'enabled' if service.get('enabled', True) else 'disabled'})"
                                 ),
+                                add_label="Add new price-watch site",
                             )
                         )
                     )
@@ -219,7 +218,7 @@ class WalletAssistantOptionsFlow(config_entries.OptionsFlow):
     async def async_step_promotion_platforms(self, user_input=None):
         if user_input is not None:
             selected = user_input[FIELD_ENTRY]
-            self._selected_platform_index = None if selected == ADD_ENTRY else int(selected)
+            self._selected_platform_index = int(selected)
             return await self.async_step_promotion_platform()
 
         return self.async_show_form(
@@ -230,7 +229,6 @@ class WalletAssistantOptionsFlow(config_entries.OptionsFlow):
                         selector.SelectSelectorConfig(
                             options=_entry_options(
                                 self._promotion_platforms,
-                                add_label="Add new promotion platform",
                                 label_fn=lambda platform: (
                                     f"{platform['name']} "
                                     f"({'enabled' if platform.get('enabled', False) else 'disabled'})"
@@ -245,54 +243,34 @@ class WalletAssistantOptionsFlow(config_entries.OptionsFlow):
     async def async_step_promotion_platform(self, user_input=None):
         errors = {}
         platform = _get_selected(self._promotion_platforms, self._selected_platform_index)
+        if not platform:
+            return await self.async_step_promotion_platforms()
 
         if user_input is not None:
-            if user_input.get(FIELD_REMOVE):
-                if self._selected_platform_index is not None:
-                    self._promotion_platforms.pop(self._selected_platform_index)
-                return self._create_options_entry()
-
-            platform_id = user_input[FIELD_PLATFORM_ID].strip()
-            name = user_input[FIELD_NAME].strip()
             enabled = bool(user_input.get(FIELD_ENABLED))
             base_url = user_input[FIELD_BASE_URL].strip()
             username = user_input[FIELD_USERNAME].strip()
             password = user_input[FIELD_PASSWORD]
 
-            if not _is_valid_platform_id(platform_id):
-                errors[FIELD_PLATFORM_ID] = "invalid_platform_id"
-            if not name:
-                errors[FIELD_NAME] = "missing_name"
             if enabled and not _is_valid_url(base_url):
                 errors[FIELD_BASE_URL] = "invalid_platform_url"
 
             if not errors:
                 updated = {
-                    "platform_id": platform_id,
-                    "name": name,
+                    "platform_id": platform["platform_id"],
+                    "name": platform["name"],
                     "enabled": enabled,
                     "base_url": base_url,
                     "username": username,
                     "password": password,
                 }
-                if self._selected_platform_index is None:
-                    self._promotion_platforms.append(updated)
-                else:
-                    self._promotion_platforms[self._selected_platform_index] = updated
+                self._promotion_platforms[self._selected_platform_index] = updated
                 return self._create_options_entry()
 
         return self.async_show_form(
             step_id="promotion_platform",
             data_schema=vol.Schema(
                 {
-                    vol.Required(
-                        FIELD_PLATFORM_ID,
-                        default=platform.get("platform_id", ""),
-                    ): str,
-                    vol.Required(
-                        FIELD_NAME,
-                        default=platform.get("name", ""),
-                    ): str,
                     vol.Required(
                         FIELD_ENABLED,
                         default=platform.get("enabled", False),
@@ -309,7 +287,6 @@ class WalletAssistantOptionsFlow(config_entries.OptionsFlow):
                         FIELD_PASSWORD,
                         default=platform.get("password", ""),
                     ): str,
-                    vol.Optional(FIELD_REMOVE, default=False): bool,
                 }
             ),
             errors=errors,
@@ -325,8 +302,14 @@ class WalletAssistantOptionsFlow(config_entries.OptionsFlow):
         )
 
 
-def _entry_options(items: list[dict], add_label: str, label_fn) -> list[dict[str, str]]:
-    options = [{"value": ADD_ENTRY, "label": add_label}]
+def _entry_options(
+    items: list[dict],
+    label_fn,
+    add_label: str | None = None,
+) -> list[dict[str, str]]:
+    options = []
+    if add_label:
+        options.append({"value": ADD_ENTRY, "label": add_label})
     options.extend(
         {"value": str(index), "label": label_fn(item)}
         for index, item in enumerate(items)
@@ -348,9 +331,3 @@ def _is_valid_price_watch_template(value: str) -> bool:
 
 def _is_valid_url(value: str) -> bool:
     return value.startswith(("https://", "http://"))
-
-
-def _is_valid_platform_id(value: str) -> bool:
-    return bool(value) and all(
-        char.islower() or char.isdigit() or char == "_" for char in value
-    )

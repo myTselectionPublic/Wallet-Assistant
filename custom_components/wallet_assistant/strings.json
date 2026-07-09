@@ -12,7 +12,6 @@
   },
   "options": {
     "error": {
-      "invalid_platform_id": "Use only lowercase letters, numbers, and underscores.",
       "invalid_platform_url": "Enabled platforms must include a valid base address.",
       "invalid_price_watch_url": "Enter a valid search URL template that includes the query placeholder.",
       "missing_name": "Enter a name."
@@ -53,20 +52,17 @@
         "data": {
           "base_url": "Login or base address",
           "enabled": "Enabled",
-          "name": "Name",
           "password": "Password",
-          "platform_id": "Platform ID",
-          "remove": "Remove this platform",
           "username": "Username"
         },
-        "description": "Credentials are saved in the integration options and used by platform adapters that support authentication.",
+        "description": "Configure credentials for the selected supported promotion platform.",
         "title": "Promotion platform"
       },
       "promotion_platforms": {
         "data": {
           "entry": "Promotion platform"
         },
-        "description": "Choose a promotion platform to edit, or add a new one. Changes are saved when you submit the platform.",
+        "description": "Choose a supported promotion platform to configure. Promotion data is refreshed at most once every 7 days.",
         "title": "Promotion platforms"
       }
     }

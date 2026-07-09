@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import logging
 
 from homeassistant.core import HomeAssistant
@@ -18,6 +18,8 @@ from .platforms import get_platform_adapter
 _LOGGER = logging.getLogger(__name__)
 
 PROMOTION_CACHE = "promotion_cache"
+PROMOTION_REFRESH_LOCK = "promotion_refresh_lock"
+PROMOTION_REFRESH_INTERVAL = timedelta(days=7)
 PROMOTION_SEARCH_MIN_LENGTH = 3
 
 
@@ -33,7 +35,7 @@ class PromotionPlatformRegistry:
             return []
 
         cache = self.cached_data
-        if not cache.get("updated_at"):
+        if self._is_cache_stale(cache):
             cache = await self.async_refresh()
 
         return [
@@ -43,6 +45,18 @@ class PromotionPlatformRegistry:
         ]
 
     async def async_refresh(self) -> dict:
+        cache = self.cached_data
+        if not self._is_cache_stale(cache):
+            return cache
+
+        async with self._refresh_lock:
+            cache = self.cached_data
+            if not self._is_cache_stale(cache):
+                return cache
+
+            return await self._async_fetch_refresh()
+
+    async def _async_fetch_refresh(self) -> dict:
         adapters = [
             self._create_adapter(config)
             for config in get_promotion_platform_configs(self.hass)
@@ -126,6 +140,19 @@ class PromotionPlatformRegistry:
         adapter_class = get_platform_adapter(config.platform_id)
         return adapter_class(self.hass, config)
 
+    @property
+    def _refresh_lock(self) -> asyncio.Lock:
+        return self.hass.data.setdefault(DOMAIN, {}).setdefault(
+            PROMOTION_REFRESH_LOCK,
+            asyncio.Lock(),
+        )
+
+    def _is_cache_stale(self, cache: dict) -> bool:
+        updated_at = _cache_updated_at(cache)
+        if updated_at is None:
+            return True
+        return datetime.now(timezone.utc) - updated_at >= PROMOTION_REFRESH_INTERVAL
+
 
 def get_promotion_platform_configs(hass: HomeAssistant) -> list[PromotionPlatformConfig]:
     entries = hass.config_entries.async_entries(DOMAIN)
@@ -160,3 +187,18 @@ def _promotion_from_dict(data: dict) -> Promotion:
 
 def _promotion_dict_matches(data: dict, query: str) -> bool:
     return _promotion_from_dict(data).matches(query)
+
+
+def _cache_updated_at(cache: dict) -> datetime | None:
+    raw_updated_at = cache.get("updated_at")
+    if not raw_updated_at:
+        return None
+
+    try:
+        updated_at = datetime.fromisoformat(str(raw_updated_at))
+    except ValueError:
+        return None
+
+    if updated_at.tzinfo is None:
+        updated_at = updated_at.replace(tzinfo=timezone.utc)
+    return updated_at.astimezone(timezone.utc)
