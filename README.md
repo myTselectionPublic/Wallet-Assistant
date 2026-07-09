@@ -48,6 +48,14 @@ So I started with the Card Wallet code and extended it.
   * Easy direct filtering while typing to quickly retrieve the needed item
   * See expiry dates
   * Sensor with number of vouchers that will expire soon
+* Support for price-watch links
+  * After entering a search query, price-watch links below the loyalty/voucher cards will be shown
+  * The links will re-drirect to browser with search query pre-filled to allow easy price lookups
+* Support for promotion platform vouchers
+  * Edenred platform: enter edenred platform credentials
+  * Benefits at work platform: enter platform credentials
+  * All promotions of the platform will be downloaded/refreshed once a day and stored in sensor attributes
+  * When searching on the wallet assistant dashboard, all possible matches of the promotion platforms will be shown immediately
 
 ## Installation
 
@@ -56,7 +64,8 @@ So I started with the Card Wallet code and extended it.
 1. Open the HACS repository link above, or add `myTselection/Wallet-Assistant` manually as a custom HACS integration repository.
 2. Install **Wallet Assistant** from HACS and restart Home Assistant.
 3. Add **Wallet Assistant** from **Settings > Devices & services > Add integration**.
-4. Add a new Lovelace/Dashboard card by selecting the card in UI ('Community cards') or manually:
+4. Configur price-watch links and the promotion platform credentials using the integration configuration option
+5. Add a new Lovelace/Dashboard card by selecting the card in UI ('Community cards') or manually:
 
 ```yaml
 type: custom:wallet-assistant-card
