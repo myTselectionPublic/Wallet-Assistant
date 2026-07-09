@@ -17,6 +17,9 @@ from .const import (
 FIELD_BASE_URL = "base_url"
 FIELD_ENABLED = "enabled"
 FIELD_ENTRY = "entry"
+FIELD_LOGO_SLUG = "logo_slug"
+FIELD_MOVE_DOWN = "move_down"
+FIELD_MOVE_UP = "move_up"
 FIELD_NAME = "name"
 FIELD_PASSWORD = "password"
 FIELD_PLATFORM_ID = "platform_id"
@@ -131,6 +134,7 @@ class WalletAssistantOptionsFlow(config_entries.OptionsFlow):
 
             name = user_input[FIELD_NAME].strip()
             url_template = user_input[FIELD_URL_TEMPLATE].strip()
+            logo_slug = user_input.get(FIELD_LOGO_SLUG, "").strip()
             enabled = bool(user_input.get(FIELD_ENABLED))
 
             if not name:
@@ -142,33 +146,73 @@ class WalletAssistantOptionsFlow(config_entries.OptionsFlow):
                 updated = {
                     "name": name,
                     "url_template": url_template,
+                    "logo_slug": logo_slug,
                     "enabled": enabled,
                 }
                 if self._selected_price_watch_index is None:
                     self._price_watch_services.append(updated)
                 else:
                     self._price_watch_services[self._selected_price_watch_index] = updated
+
+                if (
+                    user_input.get(FIELD_MOVE_UP)
+                    and self._selected_price_watch_index is not None
+                    and self._selected_price_watch_index > 0
+                ):
+                    index = self._selected_price_watch_index
+                    self._price_watch_services[index - 1], self._price_watch_services[index] = (
+                        self._price_watch_services[index],
+                        self._price_watch_services[index - 1],
+                    )
+                    self._selected_price_watch_index = index - 1
+                    return self._create_options_entry()
+
+                if (
+                    user_input.get(FIELD_MOVE_DOWN)
+                    and self._selected_price_watch_index is not None
+                    and self._selected_price_watch_index < len(self._price_watch_services) - 1
+                ):
+                    index = self._selected_price_watch_index
+                    self._price_watch_services[index + 1], self._price_watch_services[index] = (
+                        self._price_watch_services[index],
+                        self._price_watch_services[index + 1],
+                    )
+                    self._selected_price_watch_index = index + 1
+                    return self._create_options_entry()
+
                 return self._create_options_entry()
+
+        schema = {
+            vol.Required(
+                FIELD_NAME,
+                default=service.get("name", ""),
+            ): str,
+            vol.Required(
+                FIELD_URL_TEMPLATE,
+                default=service.get("url_template", ""),
+            ): str,
+            vol.Optional(
+                FIELD_LOGO_SLUG,
+                default=service.get("logo_slug", ""),
+            ): str,
+            vol.Required(
+                FIELD_ENABLED,
+                default=service.get("enabled", True),
+            ): bool,
+        }
+
+        if self._selected_price_watch_index is not None:
+            schema.update(
+                {
+                    vol.Optional(FIELD_MOVE_UP, default=False): bool,
+                    vol.Optional(FIELD_MOVE_DOWN, default=False): bool,
+                    vol.Optional(FIELD_REMOVE, default=False): bool,
+                }
+            )
 
         return self.async_show_form(
             step_id="price_watch_service",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(
-                        FIELD_NAME,
-                        default=service.get("name", ""),
-                    ): str,
-                    vol.Required(
-                        FIELD_URL_TEMPLATE,
-                        default=service.get("url_template", ""),
-                    ): str,
-                    vol.Required(
-                        FIELD_ENABLED,
-                        default=service.get("enabled", True),
-                    ): bool,
-                    vol.Optional(FIELD_REMOVE, default=False): bool,
-                }
-            ),
+            data_schema=vol.Schema(schema),
             errors=errors,
         )
 

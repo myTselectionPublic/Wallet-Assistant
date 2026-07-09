@@ -38,46 +38,85 @@ DEFAULT_PRICE_WATCH_SERVICES = (
     {
         "name": "Google Shop",
         "url_template": "https://www.google.com/search?tbm=shop&q={query}",
+        "logo_slug": "google.com",
         "enabled": True,
     },
     {
         "name": "Tweakers Tech",
         "url_template": "https://tweakers.net/pricewatch/zoeken/?keyword={query}",
+        "logo_slug": "tweakers.net",
         "enabled": True,
     },
     {
         "name": "Hagglezon Amazon EU",
         "url_template": "https://www.hagglezon.com/en/s/{query}",
+        "logo_slug": "hagglezon.com",
         "enabled": True,
     },
     {
         "name": "MaxSpar Amazon EU",
         "url_template": "https://fr.maxspar.de/s/{query}",
+        "logo_slug": "maxspar.de",
         "enabled": True,
     },
     {
         "name": "Idealo",
         "url_template": "https://www.idealo.fr/prechcat.html?q={query}",
+        "logo_slug": "idealo.fr",
         "enabled": True,
     },
     {
         "name": "Geizhals",
         "url_template": "https://geizhals.eu/?fs={query}",
+        "logo_slug": "geizhals.eu",
         "enabled": True,
     },
     {
         "name": "Kieskeurig",
         "url_template": "https://www.kieskeurig.be/search?q={query}",
+        "logo_slug": "kieskeurig.be",
         "enabled": True,
     },
     {
         "name": "Pepper",
         "url_template": "https://nl.pepper.com/search?q={query}",
+        "logo_slug": "pepper.com",
         "enabled": True,
     },
     {
         "name": "PromoButler",
         "url_template": "https://www.promobutler.be/nl/zoeken?query={query}",
+        "logo_slug": "promobutler.be",
+        "enabled": True,
+    },
+    {
+        "name": "SocialDeal",
+        "url_template": "https://www.socialdeal.be/search/{query}/?lang=nl_BE",
+        "logo_slug": "socialdeal.be",
+        "enabled": True,
+    },
+    {
+        "name": "Groupon",
+        "url_template": "https://www.groupon.be/search?query={query}&locale=nl_BE",
+        "logo_slug": "groupon.com",
+        "enabled": True,
+    },
+    {
+        "name": "Veepee",
+        "url_template": "https://nl.veepee.be/gr/find?q={query}",
+        "logo_slug": "veepee.be",
+        "enabled": True,
+    },
+    {
+        "name": "VakantieVeilingen",
+        "url_template": "https://www.vakantieveilingen.be/veilingen?q={query}",
+        "logo_slug": "vakantieveilingen.be",
+        "enabled": True,
+    },
+    {
+        "name": "PromoJagers",
+        "url_template": "https://www.promojagers.be/promos?q={query}",
+        "logo_slug": "promojagers.be",
         "enabled": True,
     },
 )
@@ -126,7 +165,11 @@ def format_price_watch_services_config(services=DEFAULT_PRICE_WATCH_SERVICES) ->
     lines = []
     for service in services:
         prefix = "" if service.get("enabled", True) else "# "
-        lines.append(f"{prefix}{service['name']}|{service['url_template']}")
+        logo_slug = str(service.get("logo_slug", "")).strip()
+        parts = [service["name"], service["url_template"]]
+        if logo_slug:
+            parts.append(logo_slug)
+        lines.append(f"{prefix}{'|'.join(parts)}")
     return "\n".join(lines)
 
 
@@ -140,6 +183,7 @@ def parse_price_watch_services_config(value) -> list[dict[str, str | bool]]:
             {
                 "name": str(service.get("name", "")).strip(),
                 "url_template": str(service.get("url_template", "")).strip(),
+                "logo_slug": str(service.get("logo_slug", "")).strip(),
                 "enabled": bool(service.get("enabled", True)),
             }
             for service in value
@@ -163,7 +207,12 @@ def parse_price_watch_services_config(value) -> list[dict[str, str | bool]]:
         if "|" not in line:
             continue
 
-        name, url_template = [part.strip() for part in line.split("|", 1)]
+        parts = [part.strip() for part in line.split("|")]
+        if len(parts) not in {2, 3}:
+            continue
+
+        name, url_template = parts[:2]
+        logo_slug = parts[2] if len(parts) == 3 else ""
         if (
             not name
             or "{query}" not in url_template
@@ -175,6 +224,7 @@ def parse_price_watch_services_config(value) -> list[dict[str, str | bool]]:
             {
                 "name": name,
                 "url_template": url_template,
+                "logo_slug": logo_slug,
                 "enabled": enabled,
             }
         )

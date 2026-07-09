@@ -27,36 +27,43 @@ const DEFAULT_PRICE_WATCH_SERVICES = [
   {
     name: "Google Shopping",
     url_template: "https://www.google.com/search?tbm=shop&q={query}",
+    logo_slug: "google.com",
     enabled: true
   },
   {
     name: "Hagglezon",
     url_template: "https://www.hagglezon.com/en/s/{query}",
+    logo_slug: "hagglezon.com",
     enabled: true
   },
   {
     name: "Tweakers Pricewatch",
     url_template: "https://tweakers.net/pricewatch/zoeken/?keyword={query}",
+    logo_slug: "tweakers.net",
     enabled: true
   },
   {
     name: "MaxSpar",
     url_template: "https://nl.maxspar.de/suche/?q={query}",
+    logo_slug: "maxspar.de",
     enabled: true
   },
   {
     name: "Idealo France",
     url_template: "https://www.idealo.fr/resultats.html?q={query}",
+    logo_slug: "idealo.fr",
     enabled: true
   },
   {
     name: "Geizhals",
     url_template: "https://geizhals.eu/?fs={query}",
+    logo_slug: "geizhals.eu",
     enabled: true
   },
   {
     name: "Kieskeurig",
     url_template: "https://www.kieskeurig.be/zoeken/index.html?q={query}",
+    logo_slug: "kieskeurig.be",
     enabled: true
   }
 ];
@@ -126,10 +133,15 @@ function getLogoCacheEntry(url) {
 
 function replaceLogoWithPlaceholder(img) {
   const placeholder = document.createElement("div");
-  placeholder.className = img.classList.contains("popup-logo")
-    ? "card-logo-placeholder popup-logo-placeholder"
-    : "card-logo-placeholder";
-  placeholder.textContent = img.dataset.initial || "?";
+  placeholder.className = img.dataset.placeholderClass
+    || (img.classList.contains("popup-logo")
+      ? "card-logo-placeholder popup-logo-placeholder"
+      : "card-logo-placeholder");
+  if (img.dataset.placeholderIcon) {
+    placeholder.innerHTML = `<ha-icon icon="${escapeHtml(img.dataset.placeholderIcon)}"></ha-icon>`;
+  } else {
+    placeholder.textContent = img.dataset.initial || "?";
+  }
   img.replaceWith(placeholder);
 }
 
@@ -205,7 +217,8 @@ function normalizePriceWatchServices(value) {
     .filter(service => service && service.enabled !== false)
     .map(service => ({
       name: String(service.name || "").trim(),
-      url_template: String(service.url_template || service.urlTemplate || service.url || "").trim()
+      url_template: String(service.url_template || service.urlTemplate || service.url || "").trim(),
+      logo_slug: String(service.logo_slug || service.logoSlug || "").trim()
     }))
     .filter(service =>
       service.name &&
@@ -1068,7 +1081,9 @@ class WalletAssistantCard extends HTMLElement {
                 rel="noopener noreferrer"
                 title="Search ${escapeHtml(priceWatchQuery)} on ${escapeHtml(service.name)}"
               >
-                <ha-icon icon="mdi:open-in-new"></ha-icon>
+                ${service.logo_slug
+                  ? `<img class="price-watch-logo" data-logo-url="${escapeHtml(getLogoUrl(service.logo_slug))}" data-placeholder-class="price-watch-logo-placeholder" data-placeholder-icon="mdi:open-in-new" alt="" loading="lazy" />`
+                  : `<ha-icon icon="mdi:open-in-new"></ha-icon>`}
                 <span>${escapeHtml(service.name)}</span>
               </a>
             `).join("")}
@@ -1134,7 +1149,7 @@ class WalletAssistantCard extends HTMLElement {
       el.addEventListener("click", () => this.openCard(el.getAttribute("data-card-id")))
     );
 
-    this.dynamicContainer.querySelectorAll(".card-logo").forEach(img =>
+    this.dynamicContainer.querySelectorAll(".card-logo, .price-watch-logo").forEach(img =>
       {
         img.addEventListener("error", () => replaceLogoWithPlaceholder(img));
         loadCachedLogoImage(img);

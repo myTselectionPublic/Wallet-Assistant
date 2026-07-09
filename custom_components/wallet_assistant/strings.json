@@ -32,11 +32,14 @@
       "price_watch_service": {
         "data": {
           "enabled": "Enabled",
+          "logo_slug": "Logo.dev slug",
+          "move_down": "Move down",
+          "move_up": "Move up",
           "name": "Name",
           "remove": "Remove this site",
           "url_template": "Search URL template"
         },
-        "description": "The URL template must include {query}, which is replaced with the dashboard filter text.",
+        "description": "The URL template must include {query}, which is replaced with the dashboard filter text. Use a domain such as example.com for the optional Logo.dev slug.",
         "title": "Price-watch site"
       },
       "price_watch_services": {

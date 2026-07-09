@@ -1,6 +1,6 @@
 {
   "name": "wallet-assistant",
-  "version": "2.0.1",
+  "version": "2.1.0",
   "description": "Wallet Assistant Home Assistant dashboard card",
   "scripts": {
     "build": "esbuild src/walletassistant-main.js --bundle --minify --outfile=custom_components/wallet_assistant/frontend/wallet-assistant-card.js --loader:.css=text --format=esm"
