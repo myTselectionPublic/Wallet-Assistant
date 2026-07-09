@@ -21,6 +21,7 @@ const DEFAULT_CARD_VIEW_MODE = "grid";
 const CARD_VIEW_MODES = new Set([DEFAULT_CARD_VIEW_MODE, "list"]);
 const CARD_LOAD_RETRY_MS = 30_000;
 const PROMOTION_SEARCH_MIN_LENGTH = 3;
+const logoImageCache = new Map();
 const DEFAULT_PRICE_WATCH_SERVICES = [
   {
     name: "Google Shopping",
@@ -96,6 +97,67 @@ function getLogoUrl(slug, size = 64) {
   const cleanSlug = String(slug ?? "").trim();
   if (!cleanSlug) return "";
   return `https://img.logo.dev/${encodeURIComponent(cleanSlug)}?token=${LOGO_DEV_PUBLISHABLE_KEY}&size=${size}&format=webp&retina=true`;
+}
+
+function getLogoCacheEntry(url) {
+  let entry = logoImageCache.get(url);
+  if (entry) return entry;
+
+  entry = {
+    status: "loading",
+    promise: null
+  };
+  entry.promise = new Promise((resolve) => {
+    const image = new Image();
+    image.onload = () => {
+      entry.status = "loaded";
+      resolve(entry);
+    };
+    image.onerror = () => {
+      entry.status = "failed";
+      resolve(entry);
+    };
+    image.src = url;
+  });
+  logoImageCache.set(url, entry);
+  return entry;
+}
+
+function replaceLogoWithPlaceholder(img) {
+  const placeholder = document.createElement("div");
+  placeholder.className = img.classList.contains("popup-logo")
+    ? "card-logo-placeholder popup-logo-placeholder"
+    : "card-logo-placeholder";
+  placeholder.textContent = img.dataset.initial || "?";
+  img.replaceWith(placeholder);
+}
+
+function loadCachedLogoImage(img) {
+  const url = img.dataset.logoUrl;
+  if (!url) {
+    replaceLogoWithPlaceholder(img);
+    return;
+  }
+
+  const entry = getLogoCacheEntry(url);
+  if (entry.status === "failed") {
+    replaceLogoWithPlaceholder(img);
+    return;
+  }
+
+  if (entry.status === "loaded") {
+    img.src = url;
+    return;
+  }
+
+  entry.promise.then((resolvedEntry) => {
+    if (!img.isConnected) return;
+    if (resolvedEntry.status === "loaded") {
+      img.src = url;
+    } else {
+      replaceLogoWithPlaceholder(img);
+    }
+  });
 }
 
 function getItemId(item) {
@@ -939,7 +1001,7 @@ class WalletAssistantCard extends HTMLElement {
           <div class="card ${getItemType(card)}" data-card-id="${escapeHtml(getItemId(card))}" title="${escapeHtml(card.name)}">
             <div class="card-logo-wrap">
               ${logoUrl
-                ? `<img class="card-logo" src="${escapeHtml(logoUrl)}" alt="" data-initial="${escapeHtml(initial)}" loading="lazy" />`
+                ? `<img class="card-logo" data-logo-url="${escapeHtml(logoUrl)}" alt="" data-initial="${escapeHtml(initial)}" loading="lazy" />`
                 : `<div class="card-logo-placeholder">${escapeHtml(initial)}</div>`}
             </div>
             <div class="card-details">
@@ -1018,7 +1080,7 @@ class WalletAssistantCard extends HTMLElement {
             <div class="popup-header">
               <div class="popup-logo-wrap">
                 ${selectedLogoUrl
-                  ? `<img class="card-logo popup-logo" src="${escapeHtml(selectedLogoUrl)}" alt="" data-initial="${escapeHtml(selectedInitial)}" loading="lazy" />`
+                  ? `<img class="card-logo popup-logo" data-logo-url="${escapeHtml(selectedLogoUrl)}" alt="" data-initial="${escapeHtml(selectedInitial)}" loading="lazy" />`
                   : `<div class="card-logo-placeholder popup-logo-placeholder">${escapeHtml(selectedInitial)}</div>`}
               </div>
               <h3 class="card-title">${escapeHtml(this.selectedCard.name)}</h3>
@@ -1072,14 +1134,10 @@ class WalletAssistantCard extends HTMLElement {
     );
 
     this.dynamicContainer.querySelectorAll(".card-logo").forEach(img =>
-      img.addEventListener("error", () => {
-        const placeholder = document.createElement("div");
-        placeholder.className = img.classList.contains("popup-logo")
-          ? "card-logo-placeholder popup-logo-placeholder"
-          : "card-logo-placeholder";
-        placeholder.textContent = img.dataset.initial || "?";
-        img.replaceWith(placeholder);
-      })
+      {
+        img.addEventListener("error", () => replaceLogoWithPlaceholder(img));
+        loadCachedLogoImage(img);
+      }
     );
 
     this.dynamicContainer.querySelectorAll(".promotion-image").forEach(img =>
