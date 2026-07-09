@@ -21,6 +21,7 @@ const DEFAULT_CARD_VIEW_MODE = "grid";
 const CARD_VIEW_MODES = new Set([DEFAULT_CARD_VIEW_MODE, "list"]);
 const CARD_LOAD_RETRY_MS = 30_000;
 const PROMOTION_SEARCH_MIN_LENGTH = 3;
+const LOGO_DEV_IMAGE_SIZE = 64;
 const logoImageCache = new Map();
 const DEFAULT_PRICE_WATCH_SERVICES = [
   {
@@ -93,7 +94,7 @@ function getCardInitial(name) {
   return String(name || "?").trim().charAt(0).toUpperCase() || "?";
 }
 
-function getLogoUrl(slug, size = 64) {
+function getLogoUrl(slug, size = LOGO_DEV_IMAGE_SIZE) {
   const cleanSlug = String(slug ?? "").trim();
   if (!cleanSlug) return "";
   return `https://img.logo.dev/${encodeURIComponent(cleanSlug)}?token=${LOGO_DEV_PUBLISHABLE_KEY}&size=${size}&format=webp&retina=true`;
@@ -974,7 +975,7 @@ class WalletAssistantCard extends HTMLElement {
         ?.classList.toggle("active", this.activeType === type);
     });
 
-    const selectedLogoUrl = this.selectedCard ? getLogoUrl(this.selectedCard.logo_slug, 96) : "";
+    const selectedLogoUrl = this.selectedCard ? getLogoUrl(this.selectedCard.logo_slug) : "";
     const selectedInitial = this.selectedCard ? getCardInitial(this.selectedCard.name) : "";
     const selectedExpiry = this.selectedCard?.expires_on ? formatExpiry(this.selectedCard.expires_on) : "";
     const selectedNotes = this.selectedCard?.notes || "";
