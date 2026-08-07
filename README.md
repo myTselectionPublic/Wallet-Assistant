@@ -56,7 +56,7 @@ So I started with the Card Wallet code and extended it.
   * Benefits at work platform: enter platform credentials
   * CrelanCo Deals: import authenticated deal listings and details
   * Argenco: import all shareholder benefits and their details
-  * All promotions of the platform will be downloaded/refreshed once a week and stored in sensor attributes
+  * All promotions are refreshed once a week and persisted in internal per-platform caches
   * When searching on the wallet assistant dashboard, all possible matches of the promotion platforms will be shown immediately
 
 ## Installation
@@ -75,7 +75,7 @@ type: custom:wallet-assistant-card
 
 ## Storage
 
-Wallet Assistant stores items in `wallet_assistant_items.json` in the Home Assistant config folder.
+Wallet Assistant stores items in `wallet_assistant_items.json` in the Home Assistant config folder. Promotion-platform caches are stored separately per platform in Home Assistant's versioned `.storage` directory. They are loaded into memory for searching and written only after a successful refresh.
 
 ## Price-Watch Searches
 
@@ -91,7 +91,7 @@ Wallet Assistant includes a generic promotion-platform search pipeline. When the
 
 Promotion platforms are configured from **Settings > Devices & services > Wallet Assistant > Configure > Promotion platforms**. Each platform has a platform ID, name, enabled toggle, login or base address, username, password, and an optional two-factor authentication seed.
 
-The `benefits_at_work` platform logs in to the configured Benefits at Work tenant, accepts the required disclaimer, discovers the main `Alle voordelen in ...` category overview links, and refreshes available offers from those category pages once per day. Promotions from every platform are normalized into the same JSON structure and stored on the `Promotion platform promotions` sensor in the `promotions` attribute. The wallet card searches that cached sensor data when you type in the filter, so UI searches do not log in to external platforms on every keystroke.
+The `benefits_at_work` platform logs in to the configured Benefits at Work tenant, accepts the required disclaimer, discovers the main `Alle voordelen in ...` category overview links, and refreshes available offers from those category pages once per week. Promotions from every platform are normalized into the same JSON structure and persisted in a separate internal cache per platform. The wallet card searches the in-memory cache through the integration API, so UI searches do not log in to external platforms on every keystroke.
 
 Use the tenant login URL as the base address, for example `https://agoria.benefitsatwork.be/login`.
 
@@ -102,6 +102,8 @@ For `argenco`, use `https://www.argenco.be/benefits` and enter the Argenco crede
 For `crelan_coop_deals`, use `https://crelancodeals.be/nl/`. CrelanCo's login currently requires an interactive Google reCAPTCHA, which Home Assistant cannot solve unattended. Log in with a browser and copy only the value of the `shop_sid` cookie into the optional authenticated session cookie field. Saving the options immediately refreshes the catalogue. The cookie is treated as a secret and is never written to logs. Username/password login remains available if CrelanCo removes the interactive challenge. If a later refresh finds that the session has expired, Wallet Assistant keeps the last successful catalogue and reports it as stale until you provide a fresh cookie.
 
 Adapters normalize external data into a shared promotion structure with a title, promotion text, image URL, platform link, optional voucher code, validity dates, and categories.
+
+The `Promotion platform promotions` sensor exposes only the total promotion count and compact per-platform refresh status. Full promotion records are deliberately not included in entity attributes, preventing large state and Recorder payloads when platforms contain hundreds of deals. When a refresh fails, the last successfully stored records remain available and the platform status is marked stale.
 
 ## Dashboard Resource
 

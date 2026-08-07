@@ -84,7 +84,7 @@ async def _async_setup_once(hass: HomeAssistant) -> None:
 async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Refresh derived promotion-platform state when options change."""
     registry = PromotionPlatformRegistry(hass)
-    cache = registry.prune_disabled_platforms()
+    cache = await registry.async_prune_disabled_platforms()
     async_dispatcher_send(hass, SIGNAL_PROMOTION_PLATFORMS_UPDATED, cache)
     cache = await registry.async_refresh(force=True)
     async_dispatcher_send(hass, SIGNAL_PROMOTION_PLATFORMS_UPDATED, cache)

@@ -82,7 +82,7 @@ class PromotionPlatformPromotionsSensor(SensorEntity):
         self._attr_extra_state_attributes = {
             "updated_at": "",
             "platforms": [],
-            "promotions": [],
+            "storage": "internal",
         }
 
     async def async_added_to_hass(self) -> None:
@@ -109,5 +109,5 @@ class PromotionPlatformPromotionsSensor(SensorEntity):
         self._attr_extra_state_attributes = {
             "updated_at": cache.get("updated_at", ""),
             "platforms": cache.get("platforms", []),
-            "promotions": promotions,
+            "storage": "internal",
         }
