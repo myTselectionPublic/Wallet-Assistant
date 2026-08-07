@@ -7,6 +7,14 @@ from homeassistant.core import HomeAssistant
 from ...models.promotion import Promotion
 
 
+class PromotionPlatformError(Exception):
+    """Base exception for a promotion platform refresh failure."""
+
+
+class PromotionPlatformAuthenticationError(PromotionPlatformError):
+    """Raised when a promotion platform cannot authenticate."""
+
+
 @dataclass(slots=True)
 class PromotionPlatformConfig:
     """Normalized configuration for a promotion platform adapter."""

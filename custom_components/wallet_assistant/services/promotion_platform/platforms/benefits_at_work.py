@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from html.parser import HTMLParser
@@ -8,7 +9,11 @@ from urllib.parse import urljoin, urlparse, urlunparse
 import aiohttp
 
 from ....models.promotion import Promotion
-from ..base import BasePromotionPlatform
+from ..base import (
+    BasePromotionPlatform,
+    PromotionPlatformAuthenticationError,
+    PromotionPlatformError,
+)
 from ..utils import clean_text, first_meaningful_text, join_text, stable_id
 
 _LOGGER = logging.getLogger(__name__)
@@ -28,6 +33,8 @@ REQUEST_HEADERS = {
 }
 BODY_EXCERPT_LENGTH = 500
 MAX_CATEGORY_PAGES = 100
+AUTHENTICATION_ATTEMPTS = 2
+AUTHENTICATION_RETRY_DELAY = 1
 
 
 class BenefitsAtWorkPlatform(BasePromotionPlatform):
@@ -55,6 +62,25 @@ class BenefitsAtWorkPlatform(BasePromotionPlatform):
             bool(self.config.username),
         )
 
+        for attempt in range(1, AUTHENTICATION_ATTEMPTS + 1):
+            try:
+                return await self._async_fetch_promotions_once()
+            except PromotionPlatformAuthenticationError:
+                if attempt == AUTHENTICATION_ATTEMPTS:
+                    raise
+                _LOGGER.info(
+                    (
+                        "Benefits at Work authentication failed for platform %s; "
+                        "retrying with a new session"
+                    ),
+                    self.config.platform_id,
+                )
+                await asyncio.sleep(AUTHENTICATION_RETRY_DELAY)
+
+        return []
+
+    async def _async_fetch_promotions_once(self) -> list[Promotion]:
+        """Fetch promotions using a new session so failed auth state is not reused."""
         cookie_jar = aiohttp.CookieJar(unsafe=True)
         async with aiohttp.ClientSession(
             cookie_jar=cookie_jar,
@@ -62,29 +88,25 @@ class BenefitsAtWorkPlatform(BasePromotionPlatform):
             headers=REQUEST_HEADERS,
         ) as session:
             if not await self._async_login(session):
-                _LOGGER.warning(
-                    "Unable to authenticate Benefits at Work platform %s",
-                    self.config.platform_id,
+                raise PromotionPlatformAuthenticationError(
+                    "Benefits at Work authentication failed"
                 )
-                return []
 
             if not await self._async_accept_disclaimer(session):
-                _LOGGER.warning(
-                    "Unable to accept Benefits at Work disclaimer for platform %s",
-                    self.config.platform_id,
+                raise PromotionPlatformError(
+                    "Benefits at Work disclaimer could not be accepted"
                 )
-                return []
 
             main_html, main_url = await self._async_fetch_main_page(session)
             if not main_html:
-                return []
+                raise PromotionPlatformError(
+                    "Benefits at Work main page could not be loaded"
+                )
 
             if _looks_like_login_page(main_html):
-                _LOGGER.warning(
-                    "Benefits at Work platform %s returned the login page for main page",
-                    self.config.platform_id,
+                raise PromotionPlatformAuthenticationError(
+                    "Benefits at Work session was not authenticated"
                 )
-                return []
 
             category_links = self._category_links(main_html, main_url)
             if not category_links:
@@ -188,7 +210,7 @@ class BenefitsAtWorkPlatform(BasePromotionPlatform):
                         self._response_details(response, body),
                     )
                     return False
-        except aiohttp.ClientError as err:
+        except (aiohttp.ClientError, TimeoutError) as err:
             _LOGGER.debug(
                 "Benefits at Work login page request failed for platform %s: %s",
                 self.config.platform_id,
@@ -239,7 +261,7 @@ class BenefitsAtWorkPlatform(BasePromotionPlatform):
                         self._response_details(response, body),
                     )
                     return False
-        except aiohttp.ClientError as err:
+        except (aiohttp.ClientError, TimeoutError) as err:
             _LOGGER.debug(
                 "Benefits at Work login POST request failed for platform %s: %s",
                 self.config.platform_id,
@@ -300,7 +322,7 @@ class BenefitsAtWorkPlatform(BasePromotionPlatform):
                     )
                     return False
                 return not _looks_like_login_page(body)
-        except aiohttp.ClientError as err:
+        except (aiohttp.ClientError, TimeoutError) as err:
             _LOGGER.debug(
                 "Benefits at Work disclaimer POST request failed for platform %s: %s",
                 self.config.platform_id,
@@ -327,7 +349,7 @@ class BenefitsAtWorkPlatform(BasePromotionPlatform):
                     )
                     return "", self._main_url
                 return body, str(response.url)
-        except aiohttp.ClientError as err:
+        except (aiohttp.ClientError, TimeoutError) as err:
             _LOGGER.debug(
                 "Benefits at Work main page request failed for platform %s: %s",
                 self.config.platform_id,
@@ -360,7 +382,7 @@ class BenefitsAtWorkPlatform(BasePromotionPlatform):
                     )
                     return "", category_url
                 return body, str(response.url)
-        except aiohttp.ClientError as err:
+        except (aiohttp.ClientError, TimeoutError) as err:
             _LOGGER.debug(
                 "Benefits at Work category %s request failed for platform %s: %s",
                 category_name,

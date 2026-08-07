@@ -43,33 +43,73 @@ class PromotionPlatformRegistry:
         ]
 
     async def async_refresh(self) -> dict:
-        adapters = [
-            self._create_adapter(config)
-            for config in get_promotion_platform_configs(self.hass)
-            if config.enabled
-        ]
+        adapters: list[BasePromotionPlatform] = []
+        platform_statuses: list[dict] = []
+        promotions: list[Promotion] = []
+        for config in get_promotion_platform_configs(self.hass):
+            if not config.enabled:
+                continue
+            try:
+                adapters.append(self._create_adapter(config))
+            except Exception as err:  # noqa: BLE001 - isolate third-party adapters
+                _LOGGER.warning(
+                    "Unable to initialize promotion platform %s: %s",
+                    config.platform_id,
+                    err,
+                )
+                stale_promotions = self._cached_platform_promotions(
+                    config.platform_id
+                )
+                promotions.extend(stale_promotions)
+                platform_statuses.append(
+                    self._failed_platform_status(config, err, len(stale_promotions))
+                )
+
         results = await asyncio.gather(
             *(adapter.async_fetch_promotions() for adapter in adapters),
             return_exceptions=True,
         )
 
-        promotions: list[Promotion] = []
-        platform_statuses: list[dict] = []
         for adapter, result in zip(adapters, results, strict=False):
+            if isinstance(result, asyncio.CancelledError):
+                raise result
             if isinstance(result, Exception):
                 _LOGGER.warning(
                     "Unable to refresh promotion platform %s: %s",
                     adapter.config.platform_id,
                     result,
                 )
+                stale_promotions = self._cached_platform_promotions(
+                    adapter.config.platform_id
+                )
+                promotions.extend(stale_promotions)
                 platform_statuses.append(
-                    {
-                        "platform_id": adapter.config.platform_id,
-                        "platform_name": adapter.config.name,
-                        "success": False,
-                        "count": 0,
-                        "error": str(result),
-                    }
+                    self._failed_platform_status(
+                        adapter.config,
+                        result,
+                        len(stale_promotions),
+                    )
+                )
+                continue
+            if not isinstance(result, list):
+                error = TypeError(
+                    f"platform returned {type(result).__name__}, expected list"
+                )
+                _LOGGER.warning(
+                    "Unable to refresh promotion platform %s: %s",
+                    adapter.config.platform_id,
+                    error,
+                )
+                stale_promotions = self._cached_platform_promotions(
+                    adapter.config.platform_id
+                )
+                promotions.extend(stale_promotions)
+                platform_statuses.append(
+                    self._failed_platform_status(
+                        adapter.config,
+                        error,
+                        len(stale_promotions),
+                    )
                 )
                 continue
             promotions.extend(result)
@@ -79,6 +119,7 @@ class PromotionPlatformRegistry:
                     "platform_name": adapter.config.name,
                     "success": True,
                     "count": len(result),
+                    "stale": False,
                     "error": "",
                 }
             )
@@ -90,6 +131,29 @@ class PromotionPlatformRegistry:
         }
         self.hass.data.setdefault(DOMAIN, {})[PROMOTION_CACHE] = cache
         return cache
+
+    def _failed_platform_status(
+        self,
+        config: PromotionPlatformConfig,
+        error: Exception,
+        stale_count: int,
+    ) -> dict:
+        """Describe a failure and retain that platform's last successful data."""
+        return {
+            "platform_id": config.platform_id,
+            "platform_name": config.name,
+            "success": False,
+            "count": stale_count,
+            "stale": bool(stale_count),
+            "error": str(error),
+        }
+
+    def _cached_platform_promotions(self, platform_id: str) -> list[Promotion]:
+        return [
+            _promotion_from_dict(promotion)
+            for promotion in self.cached_data.get("promotions", [])
+            if str(promotion.get("platform_id", "")) == platform_id
+        ]
 
     def prune_disabled_platforms(self) -> dict:
         """Remove cached data for platforms that are no longer enabled."""
