@@ -29,6 +29,8 @@ REQUEST_HEADERS = {
     "Accept": "application/json, text/plain, */*",
     "Content-Type": "application/json",
     "Accept-Language": "nl-BE,nl;q=0.9,fr-BE;q=0.8,en;q=0.7",
+    # Public client key sent by the Argenco web application on every API call.
+    "X-Kanga-Key": "nwuziog6JX0J9K",
 }
 BENEFITS_PER_PAGE = 9
 MAX_BENEFIT_PAGES = 100
@@ -300,7 +302,8 @@ class ArgencoPlatform(BasePromotionPlatform):
                         else PromotionPlatformError
                     )
                     raise error_class(
-                        f"Argenco request returned HTTP {response.status}"
+                        "Argenco request to "
+                        f"{urlparse(url).path} returned HTTP {response.status}"
                     )
                 try:
                     payload = await response.json(content_type=None)
