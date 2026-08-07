@@ -42,6 +42,7 @@ So I started with the Card Wallet code and extended it.
   * By default see all cards of all users, if desired filter and switch between your own cards and other Home Assistant user cards
   * Add new cards directly from the UI
   * Edit or delete your cards
+  * Preserve the active search and open card when returning from another mobile app
   * Responsive design
 * Support for voucher cards, linked to Home Assistant users
   * Show vouchers inline with loyalty cards, or filter the view by type

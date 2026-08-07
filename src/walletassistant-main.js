@@ -22,6 +22,8 @@ const CARD_VIEW_MODES = new Set([DEFAULT_CARD_VIEW_MODE, "list"]);
 const CARD_LOAD_RETRY_MS = 30_000;
 const PROMOTION_SEARCH_MIN_LENGTH = 3;
 const LOGO_DEV_IMAGE_SIZE = 64;
+const UI_STATE_STORAGE_PREFIX = `${API_PATH}.ui_state.v1`;
+const UI_STATE_TTL_MS = 12 * 60 * 60 * 1000;
 const logoImageCache = new Map();
 const DEFAULT_PRICE_WATCH_SERVICES = [
   {
@@ -366,6 +368,8 @@ class WalletAssistantCard extends HTMLElement {
     this._cardsLoaded = false;
     this._cardsLoadPromise = null;
     this._lastCardsLoadAttempt = 0;
+    this._uiStateUserId = "";
+    this._pendingSelectedCardId = "";
 
     const style = document.createElement("style");
     style.textContent = styleContent;
@@ -400,6 +404,7 @@ class WalletAssistantCard extends HTMLElement {
     this.toolbarContainer.querySelector("#filter")
       ?.addEventListener("input", (event) => {
         this.filterText = event.target.value;
+        this.persistUIState();
         this.render();
         this.schedulePromotionSearch();
       });
@@ -411,6 +416,7 @@ class WalletAssistantCard extends HTMLElement {
         this.promotionMatches = [];
         this.promotionSearchQuery = "";
         this.promotionsLoading = false;
+        this.persistUIState();
         this.render();
         this.toolbarContainer.querySelector("#filter")?.focus();
       });
@@ -464,6 +470,10 @@ class WalletAssistantCard extends HTMLElement {
   set hass(hass) {
     const previousUserId = this._hass?.user?.id;
     this._hass = hass;
+    const currentUserId = hass?.user?.id;
+    if (currentUserId && this._uiStateUserId !== currentUserId) {
+      this.restoreUIState(currentUserId);
+    }
     if (previousUserId !== hass?.user?.id) {
       this.loadSettings({ force: true });
       this.loadCards({ force: true });
@@ -476,6 +486,70 @@ class WalletAssistantCard extends HTMLElement {
       this.loadSettings();
       this.schedulePromotionSearch();
     }
+  }
+
+  getUIStateStorageKey(userId = this._hass?.user?.id) {
+    if (!userId) return "";
+    const locationScope = `${window.location?.pathname || "/"}${window.location?.search || ""}`;
+    return `${UI_STATE_STORAGE_PREFIX}:${encodeURIComponent(userId)}:${encodeURIComponent(locationScope)}`;
+  }
+
+  restoreUIState(userId) {
+    this._uiStateUserId = userId;
+    this.selectedCard = null;
+    this._pendingSelectedCardId = "";
+
+    const storageKey = this.getUIStateStorageKey(userId);
+    if (!storageKey) return;
+
+    try {
+      const rawState = window.localStorage?.getItem(storageKey);
+      if (!rawState) return;
+      const state = JSON.parse(rawState);
+      const savedAt = Number(state?.saved_at || 0);
+      if (!savedAt || Date.now() - savedAt > UI_STATE_TTL_MS) {
+        window.localStorage?.removeItem(storageKey);
+        return;
+      }
+      this.filterText = String(state?.filter_text || "").slice(0, 500);
+      this._pendingSelectedCardId = String(state?.selected_card_id || "").slice(0, 200);
+    } catch (error) {
+      console.debug("Unable to restore Wallet Assistant UI state.", error);
+    }
+  }
+
+  persistUIState() {
+    const storageKey = this.getUIStateStorageKey();
+    if (!storageKey) return;
+
+    const selectedCardId = String(
+      getItemId(this.selectedCard) || this._pendingSelectedCardId || ""
+    );
+    try {
+      if (!this.filterText && !selectedCardId) {
+        window.localStorage?.removeItem(storageKey);
+        return;
+      }
+      window.localStorage?.setItem(storageKey, JSON.stringify({
+        saved_at: Date.now(),
+        filter_text: String(this.filterText || "").slice(0, 500),
+        selected_card_id: selectedCardId.slice(0, 200)
+      }));
+    } catch (error) {
+      console.debug("Unable to save Wallet Assistant UI state.", error);
+    }
+  }
+
+  restoreSelectedCard() {
+    if (!this._pendingSelectedCardId) return;
+    const cardId = this._pendingSelectedCardId;
+    this._pendingSelectedCardId = "";
+    this.selectedCard = [...this.ownCards, ...this.otherCards]
+      .find(card => String(getItemId(card) || "") === cardId) || null;
+    if (this.selectedCard && !this.viewModes[cardId]) {
+      this.viewModes[cardId] = this.selectedCard.default_view;
+    }
+    this.persistUIState();
   }
 
   schedulePromotionSearch() {
@@ -601,6 +675,7 @@ class WalletAssistantCard extends HTMLElement {
       const items = all.map(normalizeItem);
       this.ownCards = items.filter(c => c.user_id === uid);
       this.otherCards = items.filter(c => c.user_id !== uid);
+      this.restoreSelectedCard();
       this._cardsLoaded = true;
       this.render();
     })();
@@ -651,11 +726,15 @@ class WalletAssistantCard extends HTMLElement {
     if (this.selectedCard && !this.viewModes[cardId]) {
       this.viewModes[cardId] = this.selectedCard.default_view;
     }
+    this._pendingSelectedCardId = "";
+    this.persistUIState();
     this.render();
   }
 
   closeCard() {
     this.selectedCard = null;
+    this._pendingSelectedCardId = "";
+    this.persistUIState();
     this.render();
   }
 
