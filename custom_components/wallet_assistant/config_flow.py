@@ -28,6 +28,7 @@ FIELD_SECTION = "section"
 FIELD_URL_TEMPLATE = "url_template"
 FIELD_USERNAME = "username"
 FIELD_TOTP_SEED = "totp_seed"
+FIELD_SESSION_COOKIE = "session_cookie"
 
 ADD_ENTRY = "__add__"
 SECTION_FINISH = "finish"
@@ -254,6 +255,7 @@ class WalletAssistantOptionsFlow(config_entries.OptionsFlow):
             username = user_input[FIELD_USERNAME].strip()
             password = user_input[FIELD_PASSWORD]
             totp_seed = str(user_input.get(FIELD_TOTP_SEED, "")).strip()
+            session_cookie = str(user_input.get(FIELD_SESSION_COOKIE, "")).strip()
 
             if enabled and not _is_valid_url(base_url):
                 errors[FIELD_BASE_URL] = "invalid_platform_url"
@@ -269,6 +271,7 @@ class WalletAssistantOptionsFlow(config_entries.OptionsFlow):
                     "username": username,
                     "password": password,
                     "totp_seed": totp_seed,
+                    "session_cookie": session_cookie,
                 }
                 self._promotion_platforms[self._selected_platform_index] = updated
                 return self._create_options_entry()
@@ -296,6 +299,10 @@ class WalletAssistantOptionsFlow(config_entries.OptionsFlow):
                     vol.Optional(
                         FIELD_TOTP_SEED,
                         default=platform.get("totp_seed", ""),
+                    ): str,
+                    vol.Optional(
+                        FIELD_SESSION_COOKIE,
+                        default=platform.get("session_cookie", ""),
                     ): str,
                 }
             ),

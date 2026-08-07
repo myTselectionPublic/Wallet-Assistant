@@ -139,6 +139,15 @@ DEFAULT_PROMOTION_PLATFORMS = (
         "username": "",
         "password": "",
     },
+    {
+        "platform_id": "crelan_coop_deals",
+        "name": "CrelanCo Deals",
+        "enabled": False,
+        "base_url": "https://crelancodeals.be/nl/",
+        "username": "",
+        "password": "",
+        "session_cookie": "",
+    },
 )
 
 SUPPORTED_PROMOTION_PLATFORM_IDS = tuple(
@@ -233,6 +242,7 @@ def format_promotion_platforms_config(platforms=DEFAULT_PROMOTION_PLATFORMS) -> 
                     str(platform.get("username", "")),
                     str(platform.get("password", "")),
                     str(platform.get("totp_seed", "")),
+                    str(platform.get("session_cookie", "")),
                 ]
             )
         )
@@ -272,6 +282,7 @@ def parse_promotion_platforms_config(value) -> list[dict[str, str | bool]]:
                     "username": str(platform.get("username", "")).strip(),
                     "password": str(platform.get("password", "")),
                     "totp_seed": str(platform.get("totp_seed", "")).strip(),
+                    "session_cookie": str(platform.get("session_cookie", "")).strip(),
                 }
             )
         return _merge_supported_promotion_platforms(platforms)
@@ -283,11 +294,15 @@ def parse_promotion_platforms_config(value) -> list[dict[str, str | bool]]:
             continue
 
         parts = [part.strip() for part in line.split("|")]
-        if len(parts) not in {6, 7}:
+        if len(parts) not in {6, 7, 8}:
             continue
 
         platform_id, name, enabled_value, base_url, username, password = parts[:6]
         totp_seed = parts[6] if len(parts) == 7 else ""
+        if len(parts) == 8:
+            totp_seed, session_cookie = parts[6:8]
+        else:
+            session_cookie = ""
         enabled = enabled_value.lower() in {"1", "true", "yes", "enabled", "on"}
         if (
             platform_id not in SUPPORTED_PROMOTION_PLATFORM_IDS
@@ -307,6 +322,7 @@ def parse_promotion_platforms_config(value) -> list[dict[str, str | bool]]:
                 "username": username,
                 "password": password,
                 "totp_seed": totp_seed,
+                "session_cookie": session_cookie,
             }
         )
 
@@ -329,6 +345,8 @@ def _merge_supported_promotion_platforms(platforms) -> list[dict[str, str | bool
                 "base_url": str(platform.get("base_url", "")).strip(),
                 "username": str(platform.get("username", "")).strip(),
                 "password": str(platform.get("password", "")),
+                "totp_seed": str(platform.get("totp_seed", "")).strip(),
+                "session_cookie": str(platform.get("session_cookie", "")).strip(),
             }
         )
 

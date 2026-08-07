@@ -26,6 +26,7 @@ class PromotionPlatformConfig:
     username: str
     password: str
     totp_seed: str = ""
+    session_cookie: str = ""
 
     @classmethod
     def from_dict(cls, data: dict) -> PromotionPlatformConfig:
@@ -37,6 +38,7 @@ class PromotionPlatformConfig:
             username=str(data.get("username", "")),
             password=str(data.get("password", "")),
             totp_seed=str(data.get("totp_seed", "")),
+            session_cookie=str(data.get("session_cookie", "")),
         )
 
     def public_dict(self) -> dict:
@@ -44,7 +46,13 @@ class PromotionPlatformConfig:
             "platform_id": self.platform_id,
             "name": self.name,
             "enabled": self.enabled,
-            "configured": bool(self.base_url and self.username and self.password),
+            "configured": bool(
+                self.base_url
+                and (
+                    (self.username and self.password)
+                    or self.session_cookie
+                )
+            ),
         }
 
 

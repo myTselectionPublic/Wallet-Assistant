@@ -44,19 +44,20 @@ class PromotionPlatformRegistry:
             if _promotion_dict_matches(promotion, clean_query)
         ]
 
-    async def async_refresh(self) -> dict:
+    async def async_refresh(self, force: bool = False) -> dict:
         cache = self.cached_data
-        if not self._is_cache_stale(cache):
+        if not force and not self._is_cache_stale(cache):
             return cache
 
         async with self._refresh_lock:
             cache = self.cached_data
-            if not self._is_cache_stale(cache):
+            if not force and not self._is_cache_stale(cache):
                 return cache
 
             return await self._async_fetch_refresh()
 
     async def _async_fetch_refresh(self) -> dict:
+        previous_cache = self.cached_data
         adapters = [
             self._create_adapter(config)
             for config in get_promotion_platform_configs(self.hass)
@@ -76,13 +77,21 @@ class PromotionPlatformRegistry:
                     adapter.config.platform_id,
                     result,
                 )
+                stale_promotions = [
+                    _promotion_from_dict(promotion)
+                    for promotion in previous_cache.get("promotions", [])
+                    if str(promotion.get("platform_id", ""))
+                    == adapter.config.platform_id
+                ]
+                promotions.extend(stale_promotions)
                 platform_statuses.append(
                     {
                         "platform_id": adapter.config.platform_id,
                         "platform_name": adapter.config.name,
                         "success": False,
-                        "count": 0,
+                        "count": len(stale_promotions),
                         "error": str(result),
+                        "stale": bool(stale_promotions),
                     }
                 )
                 continue

@@ -55,12 +55,13 @@
           "enabled": "Enabled",
           "name": "Name",
           "password": "Password",
+          "session_cookie": "Authenticated session cookie (optional)",
           "platform_id": "Platform ID",
           "remove": "Remove this platform",
           "totp_seed": "Two-factor authentication seed",
           "username": "Username"
         },
-        "description": "Credentials are saved in the integration options and used by platform adapters that support authentication. For Edenred, optionally provide the base32 TOTP seed used by your authenticator app.",
+        "description": "Credentials are saved in the integration options and used by platform adapters that support authentication. For Edenred, optionally provide the base32 TOTP seed used by your authenticator app. CrelanCo Deals currently uses an interactive reCAPTCHA; paste its shop_sid cookie here to use an authenticated browser session.",
         "title": "Promotion platform"
       },
       "promotion_platforms": {

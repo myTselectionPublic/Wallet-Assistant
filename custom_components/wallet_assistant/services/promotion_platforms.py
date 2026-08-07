@@ -3,6 +3,7 @@ from __future__ import annotations
 from .promotion_platform import (
     BasePromotionPlatform,
     BenefitsAtWorkPlatform,
+    CrelanCoopDealsPlatform,
     EdenredEngagementPlatform,
     PLATFORM_ADAPTERS,
     PROMOTION_CACHE,
@@ -17,6 +18,7 @@ from .promotion_platform import (
 __all__ = [
     "BasePromotionPlatform",
     "BenefitsAtWorkPlatform",
+    "CrelanCoopDealsPlatform",
     "EdenredEngagementPlatform",
     "PLATFORM_ADAPTERS",
     "PROMOTION_CACHE",

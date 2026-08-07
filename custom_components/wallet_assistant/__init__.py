@@ -86,7 +86,7 @@ async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> Non
     registry = PromotionPlatformRegistry(hass)
     cache = registry.prune_disabled_platforms()
     async_dispatcher_send(hass, SIGNAL_PROMOTION_PLATFORMS_UPDATED, cache)
-    cache = await registry.async_refresh()
+    cache = await registry.async_refresh(force=True)
     async_dispatcher_send(hass, SIGNAL_PROMOTION_PLATFORMS_UPDATED, cache)
 
 

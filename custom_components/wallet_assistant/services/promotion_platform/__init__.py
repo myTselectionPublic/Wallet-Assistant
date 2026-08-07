@@ -7,6 +7,7 @@ from .platforms import (
     register_platform_adapter,
 )
 from .platforms.benefits_at_work import BenefitsAtWorkPlatform
+from .platforms.crelan_coop_deals import CrelanCoopDealsPlatform
 from .platforms.edenred_engagement import EdenredEngagementPlatform
 from .registry import (
     PROMOTION_CACHE,
@@ -18,6 +19,7 @@ from .registry import (
 __all__ = [
     "BasePromotionPlatform",
     "BenefitsAtWorkPlatform",
+    "CrelanCoopDealsPlatform",
     "EdenredEngagementPlatform",
     "PLATFORM_ADAPTERS",
     "PROMOTION_CACHE",
