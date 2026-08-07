@@ -25,6 +25,7 @@ class PromotionPlatformConfig:
     base_url: str
     username: str
     password: str
+    totp_seed: str = ""
 
     @classmethod
     def from_dict(cls, data: dict) -> PromotionPlatformConfig:
@@ -35,6 +36,7 @@ class PromotionPlatformConfig:
             base_url=str(data.get("base_url", "")),
             username=str(data.get("username", "")),
             password=str(data.get("password", "")),
+            totp_seed=str(data.get("totp_seed", "")),
         )
 
     def public_dict(self) -> dict:

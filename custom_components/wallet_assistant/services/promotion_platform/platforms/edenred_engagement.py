@@ -11,7 +11,13 @@ import aiohttp
 
 from ....models.promotion import Promotion
 from ..base import BasePromotionPlatform
-from ..utils import clean_text, first_meaningful_text, join_text, stable_id
+from ..utils import (
+    clean_text,
+    first_meaningful_text,
+    generate_totp,
+    join_text,
+    stable_id,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -287,6 +293,13 @@ class EdenredEngagementPlatform(BasePromotionPlatform):
             if post_result is None:
                 return False
 
+            post_result = await self._async_complete_multifactor(
+                session,
+                post_result,
+            )
+            if post_result is None:
+                return False
+
             response_body, response_content_type, response_url = post_result
             login_result = self._login_result_from_response(
                 response_body,
@@ -374,6 +387,16 @@ class EdenredEngagementPlatform(BasePromotionPlatform):
                     reason="login follow-up request failed",
                 )
 
+            follow_result = await self._async_complete_multifactor(
+                session,
+                follow_result,
+            )
+            if follow_result is None:
+                return _EdenredLoginResult(
+                    success=False,
+                    reason="multi-factor authentication did not complete",
+                )
+
             follow_body, follow_content_type, follow_url = follow_result
             current_referer = follow_url
             current_result = self._login_result_from_response(
@@ -386,6 +409,68 @@ class EdenredEngagementPlatform(BasePromotionPlatform):
             success=False,
             reason="login follow-up chain did not complete after 5 requests",
         )
+
+    async def _async_complete_multifactor(
+        self,
+        session: aiohttp.ClientSession,
+        response_data: tuple[str, str, str],
+    ) -> tuple[str, str, str] | None:
+        """Submit a TOTP token when Edenred redirects to its MFA form."""
+        body, _, response_url = response_data
+        if not _looks_like_multifactor_page(body, response_url):
+            return response_data
+
+        if not self.config.totp_seed:
+            _LOGGER.warning(
+                (
+                    "Edenred Engagement platform %s requires a two-factor token; "
+                    "configure its TOTP seed in the integration options"
+                ),
+                self.config.platform_id,
+            )
+            return None
+
+        form = _EdenredMultifactorFormParser(response_url)
+        form.feed(body)
+        if not form.token_field:
+            _LOGGER.warning(
+                "Unable to find the Edenred two-factor token field for platform %s",
+                self.config.platform_id,
+            )
+            return None
+
+        try:
+            token = generate_totp(self.config.totp_seed)
+        except ValueError as err:
+            _LOGGER.warning(
+                "Invalid Edenred TOTP seed for platform %s: %s",
+                self.config.platform_id,
+                err,
+            )
+            return None
+
+        fields = dict(form.fields)
+        fields[form.token_field] = token
+        self._last_totp_token = token
+        try:
+            _LOGGER.debug(
+                (
+                    "Submitting Edenred two-factor token for platform %s: "
+                    "action_url=%s token_field=%s fields=%s"
+                ),
+                self.config.platform_id,
+                form.action_url,
+                form.token_field,
+                sorted(fields),
+            )
+            return await self._async_post_login_form(
+                session,
+                form.action_url or response_url,
+                fields,
+                response_url,
+            )
+        finally:
+            self._last_totp_token = ""
 
     async def _async_post_login_form(
         self,
@@ -832,7 +917,85 @@ class EdenredEngagementPlatform(BasePromotionPlatform):
             excerpt = excerpt.replace(self.config.username, "[redacted-username]")
         if self.config.password:
             excerpt = excerpt.replace(self.config.password, "[redacted-password]")
+        token = getattr(self, "_last_totp_token", "")
+        if token:
+            excerpt = excerpt.replace(token, "[redacted-totp-token]")
         return excerpt
+
+
+class _EdenredMultifactorFormParser(HTMLParser):
+    """Extract the Edenred MFA action, hidden fields, and token field name."""
+
+    _TOKEN_MARKERS = (
+        "authenticator",
+        "code",
+        "multifactor",
+        "mfa",
+        "one-time",
+        "onetime",
+        "otp",
+        "token",
+        "verification",
+    )
+
+    def __init__(self, page_url: str) -> None:
+        super().__init__(convert_charrefs=True)
+        self.page_url = page_url
+        self.action_url = page_url
+        self.fields: dict[str, str] = {}
+        self.token_field = ""
+        self._inside_form = False
+        self._token_candidates: list[tuple[int, str]] = []
+
+    def handle_starttag(self, tag: str, attrs_list: list[tuple[str, str | None]]) -> None:
+        attrs = {key.lower(): value or "" for key, value in attrs_list}
+        if tag == "form":
+            action = attrs.get("action", "").strip()
+            action_url = urljoin(self.page_url, action) if action else self.page_url
+            if _url_is_multifactor_flow(action_url) or _url_is_multifactor_flow(
+                self.page_url
+            ):
+                self._inside_form = True
+                self.action_url = action_url
+            return
+
+        if not self._inside_form or tag not in {"input", "button"}:
+            return
+
+        name = attrs.get("name", "").strip()
+        if not name or "disabled" in attrs:
+            return
+
+        field_type = attrs.get("type", "text").lower()
+        value = attrs.get("value", "")
+        self.fields[name] = value
+        if tag == "button" or field_type in {"hidden", "submit", "button", "reset"}:
+            return
+
+        candidate_text = " ".join(
+            (
+                name,
+                attrs.get("id", ""),
+                attrs.get("autocomplete", ""),
+                attrs.get("placeholder", ""),
+            )
+        ).lower()
+        score = 0
+        if attrs.get("autocomplete", "").lower() == "one-time-code":
+            score += 100
+        if any(marker in candidate_text for marker in self._TOKEN_MARKERS):
+            score += 50
+        if field_type in {"number", "tel"}:
+            score += 20
+        self._token_candidates.append((score, name))
+        self.token_field = max(
+            self._token_candidates,
+            key=lambda candidate: candidate[0],
+        )[1]
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "form" and self._inside_form:
+            self._inside_form = False
 
 
 class _EdenredSigninFormParser(HTMLParser):
@@ -1349,6 +1512,20 @@ def _looks_like_login_page(html: str) -> bool:
             or "/signin" in lowered
         )
     )
+
+
+def _looks_like_multifactor_page(html: str, url: str) -> bool:
+    lowered = html.lower()
+    return _url_is_multifactor_flow(url) or (
+        "multifactor" in lowered
+        and "validate" in lowered
+        and "<form" in lowered
+    )
+
+
+def _url_is_multifactor_flow(url: str) -> bool:
+    path = urlparse(url).path.lower().rstrip("/")
+    return path.endswith("/authentication/multifactor/validate")
 
 
 def _device_check_follow_url(html: str, url: str) -> str:

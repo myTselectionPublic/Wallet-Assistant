@@ -129,6 +129,7 @@ DEFAULT_PROMOTION_PLATFORMS = (
         "base_url": "https://agoria.benefitsatwork.be/login",
         "username": "",
         "password": "",
+        "totp_seed": "",
     },
     {
         "platform_id": "edenred_engagement",
@@ -137,25 +138,7 @@ DEFAULT_PROMOTION_PLATFORMS = (
         "base_url": "",
         "username": "",
         "password": "",
-    },
-)
-
-DEFAULT_PROMOTION_PLATFORMS = (
-    {
-        "platform_id": "benefits_at_work",
-        "name": "Benefits at Work",
-        "enabled": False,
-        "base_url": "https://agoria.benefitsatwork.be/login",
-        "username": "",
-        "password": "",
-    },
-    {
-        "platform_id": "edenred_engagement",
-        "name": "Edenred Engagement",
-        "enabled": False,
-        "base_url": "",
-        "username": "",
-        "password": "",
+        "totp_seed": "",
     },
 )
 
@@ -246,6 +229,7 @@ def format_promotion_platforms_config(platforms=DEFAULT_PROMOTION_PLATFORMS) -> 
                     str(platform.get("base_url", "")),
                     str(platform.get("username", "")),
                     str(platform.get("password", "")),
+                    str(platform.get("totp_seed", "")),
                 ]
             )
         )
@@ -280,6 +264,7 @@ def parse_promotion_platforms_config(value) -> list[dict[str, str | bool]]:
                     "base_url": base_url,
                     "username": str(platform.get("username", "")).strip(),
                     "password": str(platform.get("password", "")),
+                    "totp_seed": str(platform.get("totp_seed", "")).strip(),
                 }
             )
         return platforms
@@ -291,10 +276,11 @@ def parse_promotion_platforms_config(value) -> list[dict[str, str | bool]]:
             continue
 
         parts = [part.strip() for part in line.split("|")]
-        if len(parts) != 6:
+        if len(parts) not in {6, 7}:
             continue
 
-        platform_id, name, enabled_value, base_url, username, password = parts
+        platform_id, name, enabled_value, base_url, username, password = parts[:6]
+        totp_seed = parts[6] if len(parts) == 7 else ""
         enabled = enabled_value.lower() in {"1", "true", "yes", "enabled", "on"}
         if not _is_valid_platform_id(platform_id) or not name:
             continue
@@ -309,6 +295,7 @@ def parse_promotion_platforms_config(value) -> list[dict[str, str | bool]]:
                 "base_url": base_url,
                 "username": username,
                 "password": password,
+                "totp_seed": totp_seed,
             }
         )
 

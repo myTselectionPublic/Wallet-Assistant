@@ -14,6 +14,7 @@
     "error": {
       "invalid_platform_id": "Use only lowercase letters, numbers, and underscores.",
       "invalid_platform_url": "Enabled platforms must include a valid base address.",
+      "invalid_totp_seed": "Enter a valid base32 TOTP seed or otpauth URI.",
       "invalid_price_watch_url": "Enter a valid search URL template that includes the query placeholder.",
       "missing_name": "Enter a name."
     },
@@ -55,11 +56,12 @@
           "enabled": "Enabled",
           "name": "Name",
           "password": "Password",
+          "totp_seed": "Two-factor authentication seed",
           "platform_id": "Platform ID",
           "remove": "Remove this platform",
           "username": "Username"
         },
-        "description": "Credentials are saved in the integration options and used by platform adapters that support authentication.",
+        "description": "Credentials are saved in the integration options and used by platform adapters that support authentication. For Edenred, optionally provide the base32 TOTP seed used by your authenticator app.",
         "title": "Promotion platform"
       },
       "promotion_platforms": {

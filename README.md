@@ -78,13 +78,15 @@ The default services are Google Shopping, Hagglezon, Tweakers Pricewatch, MaxSpa
 
 Wallet Assistant includes a generic promotion-platform search pipeline. When the dashboard filter contains more than 3 characters, the frontend calls the integration backend and can show normalized external promotions below the matching cards.
 
-Promotion platforms are configured from **Settings > Devices & services > Wallet Assistant > Configure > Promotion platforms**. Each platform has a platform ID, name, enabled toggle, login or base address, username, and password.
+Promotion platforms are configured from **Settings > Devices & services > Wallet Assistant > Configure > Promotion platforms**. Each platform has a platform ID, name, enabled toggle, login or base address, username, password, and an optional two-factor authentication seed.
 
 The `benefits_at_work` platform logs in to the configured Benefits at Work tenant, accepts the required disclaimer, discovers the main `Alle voordelen in ...` category overview links, and refreshes available offers from those category pages once per day. Promotions from every platform are normalized into the same JSON structure and stored on the `Promotion platform promotions` sensor in the `promotions` attribute. The wallet card searches that cached sensor data when you type in the filter, so UI searches do not log in to external platforms on every keystroke.
 
 Use the tenant login URL as the base address, for example `https://agoria.benefitsatwork.be/login`.
 
-Adapters normalize external data into a shared promotion structure with a title, promotion text, image URL, platform link, optional voucher code, validity dates, and categories. The Benefits at Work and Edenred entries are currently configured as adapter placeholders until their authenticated API or export format is known.
+For `edenred_engagement`, use the tenant address such as `https://company.engagement.edenred.be`. If Edenred requires authenticator-app verification, enter its base32 TOTP seed (or an `otpauth://` URI) in the two-factor authentication seed field. Wallet Assistant generates and submits a token only when Edenred redirects the login to its multi-factor validation page.
+
+Adapters normalize external data into a shared promotion structure with a title, promotion text, image URL, platform link, optional voucher code, validity dates, and categories.
 
 ## Dashboard Resource
 

@@ -13,6 +13,7 @@ from .const import (
     parse_promotion_platforms_config,
     parse_price_watch_services_config,
 )
+from .services.promotion_platform.utils import is_valid_totp_seed
 
 FIELD_BASE_URL = "base_url"
 FIELD_ENABLED = "enabled"
@@ -27,6 +28,7 @@ FIELD_REMOVE = "remove"
 FIELD_SECTION = "section"
 FIELD_URL_TEMPLATE = "url_template"
 FIELD_USERNAME = "username"
+FIELD_TOTP_SEED = "totp_seed"
 
 ADD_ENTRY = "__add__"
 SECTION_FINISH = "finish"
@@ -258,6 +260,7 @@ class WalletAssistantOptionsFlow(config_entries.OptionsFlow):
             base_url = user_input[FIELD_BASE_URL].strip()
             username = user_input[FIELD_USERNAME].strip()
             password = user_input[FIELD_PASSWORD]
+            totp_seed = str(user_input.get(FIELD_TOTP_SEED, "")).strip()
 
             if not _is_valid_platform_id(platform_id):
                 errors[FIELD_PLATFORM_ID] = "invalid_platform_id"
@@ -265,6 +268,8 @@ class WalletAssistantOptionsFlow(config_entries.OptionsFlow):
                 errors[FIELD_NAME] = "missing_name"
             if enabled and not _is_valid_url(base_url):
                 errors[FIELD_BASE_URL] = "invalid_platform_url"
+            if totp_seed and not is_valid_totp_seed(totp_seed):
+                errors[FIELD_TOTP_SEED] = "invalid_totp_seed"
 
             if not errors:
                 updated = {
@@ -274,6 +279,7 @@ class WalletAssistantOptionsFlow(config_entries.OptionsFlow):
                     "base_url": base_url,
                     "username": username,
                     "password": password,
+                    "totp_seed": totp_seed,
                 }
                 if self._selected_platform_index is None:
                     self._promotion_platforms.append(updated)
@@ -308,6 +314,10 @@ class WalletAssistantOptionsFlow(config_entries.OptionsFlow):
                     vol.Optional(
                         FIELD_PASSWORD,
                         default=platform.get("password", ""),
+                    ): str,
+                    vol.Optional(
+                        FIELD_TOTP_SEED,
+                        default=platform.get("totp_seed", ""),
                     ): str,
                     vol.Optional(FIELD_REMOVE, default=False): bool,
                 }
