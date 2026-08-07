@@ -123,6 +123,15 @@ DEFAULT_PRICE_WATCH_SERVICES = (
 
 DEFAULT_PROMOTION_PLATFORMS = (
     {
+        "platform_id": "argenco",
+        "name": "Argenco",
+        "enabled": False,
+        "base_url": "https://www.argenco.be/benefits",
+        "username": "",
+        "password": "",
+        "totp_seed": "",
+    },
+    {
         "platform_id": "benefits_at_work",
         "name": "Benefits at Work",
         "enabled": False,

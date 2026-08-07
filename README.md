@@ -55,6 +55,7 @@ So I started with the Card Wallet code and extended it.
   * Edenred platform: enter edenred platform credentials
   * Benefits at work platform: enter platform credentials
   * CrelanCo Deals: import authenticated deal listings and details
+  * Argenco: import all shareholder benefits and their details
   * All promotions of the platform will be downloaded/refreshed once a week and stored in sensor attributes
   * When searching on the wallet assistant dashboard, all possible matches of the promotion platforms will be shown immediately
 
@@ -95,6 +96,8 @@ The `benefits_at_work` platform logs in to the configured Benefits at Work tenan
 Use the tenant login URL as the base address, for example `https://agoria.benefitsatwork.be/login`.
 
 For `edenred_engagement`, use the tenant address such as `https://company.engagement.edenred.be`. If Edenred requires authenticator-app verification, enter its base32 TOTP seed (or an `otpauth://` URI) in the two-factor authentication seed field. Wallet Assistant generates and submits a token only when Edenred redirects the login to its multi-factor validation page.
+
+For `argenco`, use `https://www.argenco.be/benefits` and enter the Argenco credentials. If the account uses authenticator verification, also enter its base32 TOTP seed or `otpauth://` URI. Wallet Assistant follows the same validation and login sequence as the website, reads the API's total benefit count, requests every results page, and enriches each benefit from its detail record.
 
 For `crelan_coop_deals`, use `https://crelancodeals.be/nl/`. CrelanCo's login currently requires an interactive Google reCAPTCHA, which Home Assistant cannot solve unattended. Log in with a browser and copy only the value of the `shop_sid` cookie into the optional authenticated session cookie field. Saving the options immediately refreshes the catalogue. The cookie is treated as a secret and is never written to logs. Username/password login remains available if CrelanCo removes the interactive challenge. If a later refresh finds that the session has expired, Wallet Assistant keeps the last successful catalogue and reports it as stale until you provide a fresh cookie.
 

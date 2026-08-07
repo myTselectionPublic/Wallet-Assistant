@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from .promotion_platform import (
+    ArgencoPlatform,
     BasePromotionPlatform,
     BenefitsAtWorkPlatform,
     CrelanCoopDealsPlatform,
@@ -16,6 +17,7 @@ from .promotion_platform import (
 )
 
 __all__ = [
+    "ArgencoPlatform",
     "BasePromotionPlatform",
     "BenefitsAtWorkPlatform",
     "CrelanCoopDealsPlatform",

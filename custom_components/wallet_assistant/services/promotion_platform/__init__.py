@@ -6,6 +6,7 @@ from .platforms import (
     get_platform_adapter,
     register_platform_adapter,
 )
+from .platforms.argenco import ArgencoPlatform
 from .platforms.benefits_at_work import BenefitsAtWorkPlatform
 from .platforms.crelan_coop_deals import CrelanCoopDealsPlatform
 from .platforms.edenred_engagement import EdenredEngagementPlatform
@@ -17,6 +18,7 @@ from .registry import (
 )
 
 __all__ = [
+    "ArgencoPlatform",
     "BasePromotionPlatform",
     "BenefitsAtWorkPlatform",
     "CrelanCoopDealsPlatform",

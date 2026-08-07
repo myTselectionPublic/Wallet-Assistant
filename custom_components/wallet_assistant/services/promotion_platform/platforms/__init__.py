@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from ..base import BasePromotionPlatform
+from .argenco import ArgencoPlatform
 from .benefits_at_work import BenefitsAtWorkPlatform
 from .crelan_coop_deals import CrelanCoopDealsPlatform
 from .edenred_engagement import EdenredEngagementPlatform
 
 PLATFORM_ADAPTERS: dict[str, type[BasePromotionPlatform]] = {
+    "argenco": ArgencoPlatform,
     "benefits_at_work": BenefitsAtWorkPlatform,
     "crelan_coop_deals": CrelanCoopDealsPlatform,
     "edenred_engagement": EdenredEngagementPlatform,
