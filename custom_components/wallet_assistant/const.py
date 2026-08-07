@@ -138,8 +138,11 @@ DEFAULT_PROMOTION_PLATFORMS = (
         "base_url": "",
         "username": "",
         "password": "",
-        "totp_seed": "",
     },
+)
+
+SUPPORTED_PROMOTION_PLATFORM_IDS = tuple(
+    platform["platform_id"] for platform in DEFAULT_PROMOTION_PLATFORMS
 )
 
 
@@ -239,7 +242,7 @@ def format_promotion_platforms_config(platforms=DEFAULT_PROMOTION_PLATFORMS) -> 
 def parse_promotion_platforms_config(value) -> list[dict[str, str | bool]]:
     """Parse editable promotion platform text into platform dictionaries."""
     if value is None:
-        value = format_promotion_platforms_config()
+        return _merge_supported_promotion_platforms(DEFAULT_PROMOTION_PLATFORMS)
 
     if isinstance(value, list):
         platforms = []
@@ -251,7 +254,11 @@ def parse_promotion_platforms_config(value) -> list[dict[str, str | bool]]:
             name = str(platform.get("name", "")).strip()
             enabled = bool(platform.get("enabled", False))
             base_url = str(platform.get("base_url", "")).strip()
-            if not _is_valid_platform_id(platform_id) or not name:
+            if (
+                platform_id not in SUPPORTED_PROMOTION_PLATFORM_IDS
+                or not _is_valid_platform_id(platform_id)
+                or not name
+            ):
                 continue
             if enabled and not base_url.startswith(("https://", "http://")):
                 continue
@@ -267,7 +274,7 @@ def parse_promotion_platforms_config(value) -> list[dict[str, str | bool]]:
                     "totp_seed": str(platform.get("totp_seed", "")).strip(),
                 }
             )
-        return platforms
+        return _merge_supported_promotion_platforms(platforms)
 
     platforms = []
     for raw_line in str(value).splitlines():
@@ -282,7 +289,11 @@ def parse_promotion_platforms_config(value) -> list[dict[str, str | bool]]:
         platform_id, name, enabled_value, base_url, username, password = parts[:6]
         totp_seed = parts[6] if len(parts) == 7 else ""
         enabled = enabled_value.lower() in {"1", "true", "yes", "enabled", "on"}
-        if not _is_valid_platform_id(platform_id) or not name:
+        if (
+            platform_id not in SUPPORTED_PROMOTION_PLATFORM_IDS
+            or not _is_valid_platform_id(platform_id)
+            or not name
+        ):
             continue
         if enabled and not base_url.startswith(("https://", "http://")):
             continue
@@ -299,7 +310,29 @@ def parse_promotion_platforms_config(value) -> list[dict[str, str | bool]]:
             }
         )
 
-    return platforms
+    return _merge_supported_promotion_platforms(platforms)
+
+
+def _merge_supported_promotion_platforms(platforms) -> list[dict[str, str | bool]]:
+    supported = {
+        str(platform["platform_id"]): dict(platform)
+        for platform in DEFAULT_PROMOTION_PLATFORMS
+    }
+    for platform in platforms:
+        platform_id = str(platform.get("platform_id", "")).strip()
+        if platform_id not in supported:
+            continue
+
+        supported[platform_id].update(
+            {
+                "enabled": bool(platform.get("enabled", False)),
+                "base_url": str(platform.get("base_url", "")).strip(),
+                "username": str(platform.get("username", "")).strip(),
+                "password": str(platform.get("password", "")),
+            }
+        )
+
+    return list(supported.values())
 
 
 def _is_valid_platform_id(value: str) -> bool:

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import logging
 
 from homeassistant.core import HomeAssistant
@@ -18,6 +18,8 @@ from .platforms import get_platform_adapter
 _LOGGER = logging.getLogger(__name__)
 
 PROMOTION_CACHE = "promotion_cache"
+PROMOTION_REFRESH_LOCK = "promotion_refresh_lock"
+PROMOTION_REFRESH_INTERVAL = timedelta(days=7)
 PROMOTION_SEARCH_MIN_LENGTH = 3
 
 
@@ -33,7 +35,7 @@ class PromotionPlatformRegistry:
             return []
 
         cache = self.cached_data
-        if not cache.get("updated_at"):
+        if self._is_cache_stale(cache):
             cache = await self.async_refresh()
 
         return [
@@ -43,73 +45,45 @@ class PromotionPlatformRegistry:
         ]
 
     async def async_refresh(self) -> dict:
-        adapters: list[BasePromotionPlatform] = []
-        platform_statuses: list[dict] = []
-        promotions: list[Promotion] = []
-        for config in get_promotion_platform_configs(self.hass):
-            if not config.enabled:
-                continue
-            try:
-                adapters.append(self._create_adapter(config))
-            except Exception as err:  # noqa: BLE001 - isolate third-party adapters
-                _LOGGER.warning(
-                    "Unable to initialize promotion platform %s: %s",
-                    config.platform_id,
-                    err,
-                )
-                stale_promotions = self._cached_platform_promotions(
-                    config.platform_id
-                )
-                promotions.extend(stale_promotions)
-                platform_statuses.append(
-                    self._failed_platform_status(config, err, len(stale_promotions))
-                )
+        cache = self.cached_data
+        if not self._is_cache_stale(cache):
+            return cache
 
+        async with self._refresh_lock:
+            cache = self.cached_data
+            if not self._is_cache_stale(cache):
+                return cache
+
+            return await self._async_fetch_refresh()
+
+    async def _async_fetch_refresh(self) -> dict:
+        adapters = [
+            self._create_adapter(config)
+            for config in get_promotion_platform_configs(self.hass)
+            if config.enabled
+        ]
         results = await asyncio.gather(
             *(adapter.async_fetch_promotions() for adapter in adapters),
             return_exceptions=True,
         )
 
+        promotions: list[Promotion] = []
+        platform_statuses: list[dict] = []
         for adapter, result in zip(adapters, results, strict=False):
-            if isinstance(result, asyncio.CancelledError):
-                raise result
             if isinstance(result, Exception):
                 _LOGGER.warning(
                     "Unable to refresh promotion platform %s: %s",
                     adapter.config.platform_id,
                     result,
                 )
-                stale_promotions = self._cached_platform_promotions(
-                    adapter.config.platform_id
-                )
-                promotions.extend(stale_promotions)
                 platform_statuses.append(
-                    self._failed_platform_status(
-                        adapter.config,
-                        result,
-                        len(stale_promotions),
-                    )
-                )
-                continue
-            if not isinstance(result, list):
-                error = TypeError(
-                    f"platform returned {type(result).__name__}, expected list"
-                )
-                _LOGGER.warning(
-                    "Unable to refresh promotion platform %s: %s",
-                    adapter.config.platform_id,
-                    error,
-                )
-                stale_promotions = self._cached_platform_promotions(
-                    adapter.config.platform_id
-                )
-                promotions.extend(stale_promotions)
-                platform_statuses.append(
-                    self._failed_platform_status(
-                        adapter.config,
-                        error,
-                        len(stale_promotions),
-                    )
+                    {
+                        "platform_id": adapter.config.platform_id,
+                        "platform_name": adapter.config.name,
+                        "success": False,
+                        "count": 0,
+                        "error": str(result),
+                    }
                 )
                 continue
             promotions.extend(result)
@@ -119,7 +93,6 @@ class PromotionPlatformRegistry:
                     "platform_name": adapter.config.name,
                     "success": True,
                     "count": len(result),
-                    "stale": False,
                     "error": "",
                 }
             )
@@ -131,29 +104,6 @@ class PromotionPlatformRegistry:
         }
         self.hass.data.setdefault(DOMAIN, {})[PROMOTION_CACHE] = cache
         return cache
-
-    def _failed_platform_status(
-        self,
-        config: PromotionPlatformConfig,
-        error: Exception,
-        stale_count: int,
-    ) -> dict:
-        """Describe a failure and retain that platform's last successful data."""
-        return {
-            "platform_id": config.platform_id,
-            "platform_name": config.name,
-            "success": False,
-            "count": stale_count,
-            "stale": bool(stale_count),
-            "error": str(error),
-        }
-
-    def _cached_platform_promotions(self, platform_id: str) -> list[Promotion]:
-        return [
-            _promotion_from_dict(promotion)
-            for promotion in self.cached_data.get("promotions", [])
-            if str(promotion.get("platform_id", "")) == platform_id
-        ]
 
     def prune_disabled_platforms(self) -> dict:
         """Remove cached data for platforms that are no longer enabled."""
@@ -190,6 +140,19 @@ class PromotionPlatformRegistry:
         adapter_class = get_platform_adapter(config.platform_id)
         return adapter_class(self.hass, config)
 
+    @property
+    def _refresh_lock(self) -> asyncio.Lock:
+        return self.hass.data.setdefault(DOMAIN, {}).setdefault(
+            PROMOTION_REFRESH_LOCK,
+            asyncio.Lock(),
+        )
+
+    def _is_cache_stale(self, cache: dict) -> bool:
+        updated_at = _cache_updated_at(cache)
+        if updated_at is None:
+            return True
+        return datetime.now(timezone.utc) - updated_at >= PROMOTION_REFRESH_INTERVAL
+
 
 def get_promotion_platform_configs(hass: HomeAssistant) -> list[PromotionPlatformConfig]:
     entries = hass.config_entries.async_entries(DOMAIN)
@@ -224,3 +187,18 @@ def _promotion_from_dict(data: dict) -> Promotion:
 
 def _promotion_dict_matches(data: dict, query: str) -> bool:
     return _promotion_from_dict(data).matches(query)
+
+
+def _cache_updated_at(cache: dict) -> datetime | None:
+    raw_updated_at = cache.get("updated_at")
+    if not raw_updated_at:
+        return None
+
+    try:
+        updated_at = datetime.fromisoformat(str(raw_updated_at))
+    except ValueError:
+        return None
+
+    if updated_at.tzinfo is None:
+        updated_at = updated_at.replace(tzinfo=timezone.utc)
+    return updated_at.astimezone(timezone.utc)
