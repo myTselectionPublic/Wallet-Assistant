@@ -52,7 +52,7 @@ class PromotionPlatformConfig:
             "configured": bool(
                 self.base_url
                 and (
-                    self.platform_id == "argenco"
+                    self.platform_id in {"argenco", "engie_benefits"}
                     or authentication_configured
                 )
             ),

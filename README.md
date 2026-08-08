@@ -57,6 +57,7 @@ So I started with the Card Wallet code and extended it.
   * Benefits at work platform: enter platform credentials
   * CrelanCo Deals: import authenticated deal listings and details
   * Argenco: import public shareholder benefits without credentials; optionally authenticate to request account-specific voucher data
+  * ENGIE Benefits: import the complete public benefits catalogue without credentials
   * All promotions are refreshed once a week and persisted in internal per-platform caches
   * When searching on the wallet assistant dashboard, all possible matches of the promotion platforms will be shown immediately
 
@@ -94,11 +95,13 @@ Promotion platforms are configured from **Settings > Devices & services > Wallet
 
 The `benefits_at_work` platform logs in to the configured Benefits at Work tenant, accepts the required disclaimer, discovers the main `Alle voordelen in ...` category overview links, and refreshes available offers from those category pages once per week. Promotions from every platform are normalized into the same JSON structure and persisted in a separate internal cache per platform. The wallet card searches the in-memory cache through the integration API, so UI searches do not log in to external platforms on every keystroke.
 
-Use the tenant login URL as the base address, for example `https://agoria.benefitsatwork.be/login`.
+Use the tenant login URL as the base address, for example `https://company.benefitsatwork.be/login`.
 
 For `edenred_engagement`, use the tenant address such as `https://company.engagement.edenred.be`. If Edenred requires authenticator-app verification, enter its base32 TOTP seed (or an `otpauth://` URI) in the two-factor authentication seed field. Wallet Assistant generates and submits a token only when Edenred redirects the login to its multi-factor validation page.
 
 For `argenco`, use `https://www.argenco.be/benefits`. Credentials are optional because Argenco exposes its promotion catalogue and ordinary benefit details publicly. When credentials are configured, Wallet Assistant also follows the website's validation and login sequence to request account-specific voucher codes when available. If the account uses authenticator verification, also enter its base32 TOTP seed or `otpauth://` URI. A failed optional login does not prevent public promotions from refreshing.
+
+For `engie_benefits`, use `https://www.engie.be/nl/voordelen/`. No credentials are required. ENGIE embeds every category and promotion in the public page; Wallet Assistant reads the complete catalogue in one request, filters hidden, future, and expired entries, and preserves each offer's public detail link, discount, description, image, category, and validity dates.
 
 For `crelan_coop_deals`, use `https://crelancodeals.be/nl/`. CrelanCo's login currently requires an interactive Google reCAPTCHA, which Home Assistant cannot solve unattended. Log in with a browser and copy only the value of the `shop_sid` cookie into the optional authenticated session cookie field. Saving the options immediately refreshes the catalogue. The cookie is treated as a secret and is never written to logs. Username/password login remains available if CrelanCo removes the interactive challenge. If a later refresh finds that the session has expired, Wallet Assistant keeps the last successful catalogue and reports it as stale until you provide a fresh cookie.
 

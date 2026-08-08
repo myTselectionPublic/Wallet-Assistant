@@ -61,7 +61,7 @@
           "totp_seed": "Two-factor authentication seed",
           "username": "Username"
         },
-        "description": "Credentials are saved in the integration options and used by platform adapters that support authentication. Argenco credentials are optional and are used to request account-specific voucher data when available. For Argenco and Edenred, provide the base32 TOTP seed used by your authenticator app when two-factor authentication is enabled. CrelanCo Deals currently uses an interactive reCAPTCHA; paste its shop_sid cookie here to use an authenticated browser session.",
+        "description": "Credentials are saved in the integration options and used by platform adapters that support authentication. ENGIE Benefits needs only its public benefits URL. Argenco credentials are optional and are used to request account-specific voucher data when available. For Argenco and Edenred, provide the base32 TOTP seed used by your authenticator app when two-factor authentication is enabled. CrelanCo Deals currently uses an interactive reCAPTCHA; paste its shop_sid cookie here to use an authenticated browser session.",
         "title": "Promotion platform"
       },
       "promotion_platforms": {

@@ -10,6 +10,7 @@ from .platforms.argenco import ArgencoPlatform
 from .platforms.benefits_at_work import BenefitsAtWorkPlatform
 from .platforms.crelan_coop_deals import CrelanCoopDealsPlatform
 from .platforms.edenred_engagement import EdenredEngagementPlatform
+from .platforms.engie_benefits import EngieBenefitsPlatform
 from .registry import (
     PROMOTION_CACHE,
     PROMOTION_SEARCH_MIN_LENGTH,
@@ -23,6 +24,7 @@ __all__ = [
     "BenefitsAtWorkPlatform",
     "CrelanCoopDealsPlatform",
     "EdenredEngagementPlatform",
+    "EngieBenefitsPlatform",
     "PLATFORM_ADAPTERS",
     "PROMOTION_CACHE",
     "PROMOTION_SEARCH_MIN_LENGTH",

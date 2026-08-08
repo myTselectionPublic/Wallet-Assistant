@@ -135,7 +135,7 @@ DEFAULT_PROMOTION_PLATFORMS = (
         "platform_id": "benefits_at_work",
         "name": "Benefits at Work",
         "enabled": False,
-        "base_url": "https://agoria.benefitsatwork.be/login",
+        "base_url": "https://company.benefitsatwork.be/login",
         "username": "",
         "password": "",
         "totp_seed": "",
@@ -156,6 +156,14 @@ DEFAULT_PROMOTION_PLATFORMS = (
         "username": "",
         "password": "",
         "session_cookie": "",
+    },
+    {
+        "platform_id": "engie_benefits",
+        "name": "ENGIE Benefits",
+        "enabled": False,
+        "base_url": "https://www.engie.be/nl/voordelen/",
+        "username": "",
+        "password": "",
     },
 )
 
