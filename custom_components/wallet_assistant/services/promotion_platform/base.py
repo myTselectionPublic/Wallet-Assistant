@@ -42,6 +42,9 @@ class PromotionPlatformConfig:
         )
 
     def public_dict(self) -> dict:
+        authentication_configured = bool(
+            (self.username and self.password) or self.session_cookie
+        )
         return {
             "platform_id": self.platform_id,
             "name": self.name,
@@ -49,8 +52,8 @@ class PromotionPlatformConfig:
             "configured": bool(
                 self.base_url
                 and (
-                    (self.username and self.password)
-                    or self.session_cookie
+                    self.platform_id == "argenco"
+                    or authentication_configured
                 )
             ),
         }

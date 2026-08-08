@@ -32,9 +32,27 @@ REQUEST_HEADERS = {
     # Public client key sent by the Argenco web application on every API call.
     "X-Kanga-Key": "nwuziog6JX0J9K",
 }
-BENEFITS_PER_PAGE = 9
+BENEFITS_PER_PAGE = 1000
 MAX_BENEFIT_PAGES = 100
 DETAIL_CONCURRENCY = 5
+BENEFIT_LIST_FIELDS = [
+    "id",
+    "created_at",
+    "nw_timing",
+    "nw_discount_tag",
+    "discount_name",
+    "get_item",
+]
+BENEFIT_DETAIL_FIELDS = [
+    *BENEFIT_LIST_FIELDS,
+    "nw_intro",
+    "nw_what",
+    "nw_how",
+    "nw_when",
+    "nw_where",
+    "block_info",
+    "linked_code",
+]
 _MONTHS = {
     "jan": 1,
     "feb": 2,
@@ -67,15 +85,30 @@ class ArgencoPlatform(BasePromotionPlatform):
     """Adapter for the Argenco shareholder benefits API."""
 
     async def async_fetch_promotions(self) -> list[Promotion]:
-        if not self.config.base_url or not self.config.username or not self.config.password:
-            _LOGGER.debug("Argenco is missing its base URL or credentials")
+        if not self.config.base_url:
+            _LOGGER.debug("Argenco is missing its base URL")
             return []
 
         async with aiohttp.ClientSession(
             timeout=REQUEST_TIMEOUT,
             headers=REQUEST_HEADERS,
         ) as session:
-            auth_headers = await self._async_login(session)
+            auth_headers: dict[str, str] = {}
+            if self.config.username and self.config.password:
+                try:
+                    auth_headers = await self._async_login(session)
+                except PromotionPlatformError as err:
+                    _LOGGER.warning(
+                        "Unable to authenticate Argenco for personalized benefit "
+                        "details; continuing with public promotions: %s",
+                        err,
+                    )
+            elif self.config.username or self.config.password:
+                _LOGGER.warning(
+                    "Argenco credentials are incomplete; continuing with public "
+                    "promotions"
+                )
+
             promotions = await self._async_fetch_all_benefits(session)
             await self._async_enrich_details(session, auth_headers, promotions)
             _LOGGER.debug("Argenco yielded %s promotions", len(promotions))
@@ -137,7 +170,13 @@ class ArgencoPlatform(BasePromotionPlatform):
             session,
             self._login_url,
             {
-                "fields": ["id", "voorletters", "first_name"],
+                "fields": [
+                    "id",
+                    "voorletters",
+                    "first_name",
+                    "auth_token",
+                    "email",
+                ],
                 "username": self.config.username,
                 "password": self.config.password,
                 "otp": login_token,
@@ -146,10 +185,18 @@ class ArgencoPlatform(BasePromotionPlatform):
             authentication=True,
         )
         data = login.get("data", {})
+        if isinstance(data, dict) and isinstance(data.get("result"), dict):
+            data = data["result"]
+        if not isinstance(data, dict):
+            raise PromotionPlatformAuthenticationError(
+                "Argenco login response did not contain authentication details"
+            )
         auth_token = str(data.get("auth_token", "")).strip()
         auth_email = str(data.get("email", "")).strip()
         if not auth_token or not auth_email:
-            raise PromotionPlatformAuthenticationError("Argenco login failed")
+            raise PromotionPlatformAuthenticationError(
+                "Argenco login response did not contain authentication details"
+            )
         return {"auth-email": auth_email, "auth-token": auth_token}
 
     async def _async_fetch_all_benefits(
@@ -187,7 +234,7 @@ class ArgencoPlatform(BasePromotionPlatform):
             self._fetch_all_url,
             {
                 "object": "v2_benefit",
-                "fields": ["id", "created_at", "nw_timing"],
+                "fields": BENEFIT_LIST_FIELDS,
                 "per_page": BENEFITS_PER_PAGE,
                 "page": page,
                 "order": "weight DESC",
@@ -219,7 +266,7 @@ class ArgencoPlatform(BasePromotionPlatform):
                         self._fetch_all_url,
                         {
                             "object": "v2_benefit",
-                            "fields": ["id", "created_at", "nw_timing"],
+                            "fields": BENEFIT_DETAIL_FIELDS,
                             "id": promotion.promotion_id,
                         },
                         headers=auth_headers,

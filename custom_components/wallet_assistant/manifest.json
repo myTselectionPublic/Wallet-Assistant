@@ -8,6 +8,9 @@
   "documentation": "https://github.com/myTselection/Wallet-Assistant",
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/myTselection/Wallet-Assistant/issues",
+  "loggers": [
+    "custom_components.wallet_assistant"
+  ],
   "requirements": [],
-  "version": "3.1.1"
+  "version": "3.2.0"
 }
