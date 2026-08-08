@@ -54,6 +54,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await _async_setup_once(hass)
     entry.async_on_unload(entry.add_update_listener(_async_options_updated))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    _LOGGER.info("Starting promotion platform refresh after integration startup")
+    registry = PromotionPlatformRegistry(hass)
+    cache = await registry.async_refresh(force=True)
+    async_dispatcher_send(hass, SIGNAL_PROMOTION_PLATFORMS_UPDATED, cache)
+    _LOGGER.info(
+        "Promotion platform startup refresh finished: platforms=%s promotions=%s",
+        len(cache.get("platforms", [])),
+        len(cache.get("promotions", [])),
+    )
     return True
 
 

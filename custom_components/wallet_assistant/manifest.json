@@ -12,5 +12,5 @@
     "custom_components.wallet_assistant"
   ],
   "requirements": [],
-  "version": "3.2.0"
+  "version": "3.2.1"
 }

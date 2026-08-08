@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime, timedelta, timezone
 import logging
+from time import monotonic
 
 from homeassistant.core import HomeAssistant
 
@@ -61,7 +62,19 @@ class PromotionPlatformRegistry:
                 for config in enabled_configs
                 if force or self._is_platform_cache_stale(cache, config.platform_id)
             ]
+            _LOGGER.debug(
+                "Promotion refresh evaluated: force=%s enabled=%s selected=%s "
+                "cached_promotions=%s",
+                force,
+                [config.platform_id for config in enabled_configs],
+                [config.platform_id for config in refresh_configs],
+                len(cache.get("promotions", [])),
+            )
             if not refresh_configs:
+                _LOGGER.debug(
+                    "Promotion refresh skipped because all enabled platform caches "
+                    "are still fresh"
+                )
                 return cache
 
             return await self._async_fetch_refresh(
@@ -84,6 +97,10 @@ class PromotionPlatformRegistry:
                 for config in get_promotion_platform_configs(self.hass)
                 if config.enabled
             ]
+            _LOGGER.info(
+                "Loading promotion caches for enabled platforms: %s",
+                ", ".join(config.platform_id for config in configs) or "none",
+            )
             results = await asyncio.gather(
                 *(
                     PromotionPlatformStore(
@@ -105,9 +122,19 @@ class PromotionPlatformRegistry:
                     )
                     continue
                 if result is None:
+                    _LOGGER.debug(
+                        "No stored promotion cache found for %s",
+                        config.platform_id,
+                    )
                     continue
 
                 platform_promotions = result["promotions"]
+                _LOGGER.info(
+                    "Loaded promotion cache for %s: count=%s updated_at=%s",
+                    config.platform_id,
+                    len(platform_promotions),
+                    result["updated_at"] or "unknown",
+                )
                 promotions.extend(platform_promotions)
                 statuses.append(
                     {
@@ -137,7 +164,7 @@ class PromotionPlatformRegistry:
             for config in refresh_configs
         ]
         results = await asyncio.gather(
-            *(adapter.async_fetch_promotions() for adapter in adapters),
+            *(self._async_fetch_adapter(adapter) for adapter in adapters),
             return_exceptions=True,
         )
 
@@ -150,11 +177,6 @@ class PromotionPlatformRegistry:
             platform_id = adapter.config.platform_id
             attempted_at = datetime.now(timezone.utc).isoformat()
             if isinstance(result, Exception):
-                _LOGGER.warning(
-                    "Unable to refresh promotion platform %s: %s",
-                    adapter.config.platform_id,
-                    result,
-                )
                 stale_promotions = promotions_by_platform.get(platform_id, [])
                 previous_status = statuses_by_platform.get(platform_id, {})
                 statuses_by_platform[platform_id] = {
@@ -233,6 +255,38 @@ class PromotionPlatformRegistry:
         cache = _build_cache(platform_statuses, promotions)
         self.hass.data.setdefault(DOMAIN, {})[PROMOTION_CACHE] = cache
         return cache
+
+    async def _async_fetch_adapter(
+        self, adapter: BasePromotionPlatform
+    ) -> list[Promotion]:
+        platform_id = adapter.config.platform_id
+        started_at = monotonic()
+        _LOGGER.info(
+            "Starting promotion refresh for %s: base_url=%s "
+            "credentials_configured=%s session_cookie_configured=%s",
+            platform_id,
+            adapter.config.base_url,
+            bool(adapter.config.username and adapter.config.password),
+            bool(adapter.config.session_cookie),
+        )
+        try:
+            promotions = await adapter.async_fetch_promotions()
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.warning(
+                "Promotion refresh for %s failed after %.1f seconds: %s",
+                platform_id,
+                monotonic() - started_at,
+                err,
+            )
+            raise
+
+        _LOGGER.info(
+            "Promotion refresh for %s completed after %.1f seconds: count=%s",
+            platform_id,
+            monotonic() - started_at,
+            len(promotions),
+        )
+        return promotions
 
     async def async_prune_disabled_platforms(self) -> dict:
         """Remove memory and disk caches for platforms that are disabled."""
@@ -321,7 +375,12 @@ class PromotionPlatformRegistry:
         updated_at = _parse_updated_at(status.get("updated_at"))
         if updated_at is None:
             return True
-        return datetime.now(timezone.utc) - updated_at >= PROMOTION_REFRESH_INTERVAL
+        refresh_interval = (
+            PROMOTION_RETRY_INTERVAL
+            if _status_count(status) == 0
+            else PROMOTION_REFRESH_INTERVAL
+        )
+        return datetime.now(timezone.utc) - updated_at >= refresh_interval
 
 
 def get_promotion_platform_configs(hass: HomeAssistant) -> list[PromotionPlatformConfig]:
@@ -395,3 +454,10 @@ def _parse_updated_at(raw_updated_at: object) -> datetime | None:
     if updated_at.tzinfo is None:
         updated_at = updated_at.replace(tzinfo=timezone.utc)
     return updated_at.astimezone(timezone.utc)
+
+
+def _status_count(status: dict) -> int:
+    try:
+        return max(0, int(status.get("count", 0)))
+    except (TypeError, ValueError):
+        return 0

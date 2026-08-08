@@ -35,6 +35,7 @@ REQUEST_HEADERS = {
 BENEFITS_PER_PAGE = 1000
 MAX_BENEFIT_PAGES = 100
 DETAIL_CONCURRENCY = 5
+DETAIL_PROGRESS_INTERVAL = 10
 BENEFIT_LIST_FIELDS = [
     "id",
     "created_at",
@@ -95,8 +96,16 @@ class ArgencoPlatform(BasePromotionPlatform):
         ) as session:
             auth_headers: dict[str, str] = {}
             if self.config.username and self.config.password:
+                _LOGGER.info(
+                    "Argenco credentials are configured; attempting optional "
+                    "authentication"
+                )
                 try:
                     auth_headers = await self._async_login(session)
+                    _LOGGER.info(
+                        "Argenco authentication succeeded; personalized benefit "
+                        "details are enabled"
+                    )
                 except PromotionPlatformError as err:
                     _LOGGER.warning(
                         "Unable to authenticate Argenco for personalized benefit "
@@ -108,8 +117,18 @@ class ArgencoPlatform(BasePromotionPlatform):
                     "Argenco credentials are incomplete; continuing with public "
                     "promotions"
                 )
+            else:
+                _LOGGER.info(
+                    "Argenco credentials are not configured; using the public "
+                    "benefit catalogue"
+                )
 
+            _LOGGER.info("Fetching the Argenco public benefit catalogue")
             promotions = await self._async_fetch_all_benefits(session)
+            _LOGGER.info(
+                "Argenco catalogue parsing yielded %s promotions; loading details",
+                len(promotions),
+            )
             await self._async_enrich_details(session, auth_headers, promotions)
             _LOGGER.debug("Argenco yielded %s promotions", len(promotions))
             return promotions
@@ -206,6 +225,11 @@ class ArgencoPlatform(BasePromotionPlatform):
         data = first_payload.get("data", {})
         total = _integer(data.get("count"))
         pages = max(1, math.ceil(total / BENEFITS_PER_PAGE))
+        _LOGGER.info(
+            "Argenco catalogue reports %s benefits across %s page(s)",
+            total,
+            pages,
+        )
         if pages > MAX_BENEFIT_PAGES:
             raise PromotionPlatformError(
                 f"Argenco returned an unexpected benefit count ({total})"
@@ -256,6 +280,17 @@ class ArgencoPlatform(BasePromotionPlatform):
         auth_headers: dict[str, str],
         promotions: list[Promotion],
     ) -> None:
+        if not promotions:
+            _LOGGER.info("Argenco detail enrichment skipped: no promotions found")
+            return
+
+        _LOGGER.info(
+            "Starting Argenco detail enrichment for %s promotions with "
+            "authentication=%s and concurrency=%s",
+            len(promotions),
+            bool(auth_headers),
+            DETAIL_CONCURRENCY,
+        )
         semaphore = asyncio.Semaphore(DETAIL_CONCURRENCY)
 
         async def enrich(promotion: Promotion) -> None:
@@ -302,7 +337,18 @@ class ArgencoPlatform(BasePromotionPlatform):
                         str(linked_code.get("code") or linked_code.get("value") or "")
                     )
 
-        await asyncio.gather(*(enrich(promotion) for promotion in promotions))
+        for offset in range(0, len(promotions), DETAIL_PROGRESS_INTERVAL):
+            batch = promotions[offset : offset + DETAIL_PROGRESS_INTERVAL]
+            await asyncio.gather(*(enrich(promotion) for promotion in batch))
+            _LOGGER.info(
+                "Argenco detail enrichment progress: %s/%s",
+                min(offset + len(batch), len(promotions)),
+                len(promotions),
+            )
+        _LOGGER.info(
+            "Completed Argenco detail enrichment for %s promotions",
+            len(promotions),
+        )
 
     def _promotion_from_item(self, item: object) -> Promotion | None:
         if not isinstance(item, dict):
