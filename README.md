@@ -1,10 +1,10 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
-[![GitHub release](https://img.shields.io/github/release/myTselection/Wallet-Assistant.svg)](https://github.com/myTselection/Wallet-Assistant/releases)
-![GitHub repo size](https://img.shields.io/github/repo-size/myTselection/Wallet-Assistant.svg)
+[![GitHub release](https://img.shields.io/github/release/myTselectionPublic/Wallet-Assistant.svg)](https://github.com/myTselectionPublic/Wallet-Assistant/releases)
+![GitHub repo size](https://img.shields.io/github/repo-size/myTselectionPublic/Wallet-Assistant.svg)
 
-[![GitHub issues](https://img.shields.io/github/issues/myTselection/Wallet-Assistant.svg)](https://github.com/myTselection/Wallet-Assistant/issues)
-[![GitHub last commit](https://img.shields.io/github/last-commit/myTselection/Wallet-Assistant.svg)](https://github.com/myTselection/Wallet-Assistant/commits/main)
-[![GitHub commit activity](https://img.shields.io/github/commit-activity/m/myTselection/Wallet-Assistant.svg)](https://github.com/myTselection/Wallet-Assistant/graphs/commit-activity)
+[![GitHub issues](https://img.shields.io/github/issues/myTselectionPublic/Wallet-Assistant.svg)](https://github.com/myTselectionPublic/Wallet-Assistant/issues)
+[![GitHub last commit](https://img.shields.io/github/last-commit/myTselectionPublic/Wallet-Assistant.svg)](https://github.com/myTselectionPublic/Wallet-Assistant/commits/main)
+[![GitHub commit activity](https://img.shields.io/github/commit-activity/m/myTselectionPublic/Wallet-Assistant.svg)](https://github.com/myTselectionPublic/Wallet-Assistant/graphs/commit-activity)
 
 <p align="center">
   <img src="custom_components/wallet_assistant/brand/logo.png" alt="Wallet Assistant" width="720">
@@ -63,9 +63,9 @@ So I started with the Card Wallet code and extended it.
 
 ## Installation
 
-[![Open your Home Assistant instance and add this repository to HACS.](https://my.home-assistant.io/badges/hacs_repository.svg?style=flat-square)](https://my.home-assistant.io/redirect/hacs_repository/?owner=myTselection&repository=Wallet-Assistant&category=integration)
+[![Open your Home Assistant instance and add this repository to HACS.](https://my.home-assistant.io/badges/hacs_repository.svg?style=flat-square)](https://my.home-assistant.io/redirect/hacs_repository/?owner=myTselectionPublic&repository=Wallet-Assistant&category=integration)
 
-1. Open the HACS repository link above, or add `myTselection/Wallet-Assistant` manually as a custom HACS integration repository.
+1. Open the HACS repository link above, or add `myTselectionPublic/Wallet-Assistant` manually as a custom HACS integration repository.
 2. Install **Wallet Assistant** from HACS and restart Home Assistant.
 3. Add **Wallet Assistant** from **Settings > Devices & services > Add integration**.
 4. Configur price-watch links and the promotion platform credentials using the integration configuration option
