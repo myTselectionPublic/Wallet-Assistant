@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import logging
 from pathlib import Path
 
@@ -126,7 +127,9 @@ async def _async_register_lovelace_resource(hass: HomeAssistant) -> None:
         _LOGGER.warning("Unable to access Lovelace resources; dashboard card resource was not registered")
         return
 
-    resource_url = f"{FRONTEND_PATH}?v={VERSION}"
+    frontend_file = Path(__file__).parent / "frontend" / "wallet-assistant-card.js"
+    frontend_hash = hashlib.sha256(frontend_file.read_bytes()).hexdigest()[:10]
+    resource_url = f"{FRONTEND_PATH}?v={VERSION}-{frontend_hash}"
     if hasattr(resources, "async_get_info"):
         await resources.async_get_info()
 

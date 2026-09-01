@@ -754,6 +754,21 @@ ha-icon {
 	margin-bottom: 8px;
 }
 
+.promotion-platform-title a {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	min-width: 0;
+	color: #245f9e;
+	font-weight: 700;
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+
+.promotion-platform-title a:hover {
+	text-decoration: underline;
+}
+
 .promotion-platform-state {
 	flex: 0 0 auto;
 	padding: 3px 7px;

@@ -276,6 +276,7 @@ function normalizePromotionPlatformStatus(status) {
   return {
     platform_id: String(status?.platform_id || ""),
     platform_name: String(status?.platform_name || status?.platform_id || "Unknown platform"),
+    platform_url: String(status?.platform_url || ""),
     count: Number.isFinite(parsedCount) ? Math.max(0, parsedCount) : 0,
     success: status?.success === true,
     stale: status?.stale === true,
@@ -667,7 +668,10 @@ class WalletAssistantCard extends HTMLElement {
 
     this._promotionStatusPromise = (async () => {
       try {
-        const result = await this._hass.callApi("get", `${API_PATH}/promotions/status`);
+        const result = await this._hass.callApi(
+          "get",
+          `${API_PATH}/promotions/status?ts=${Date.now()}`
+        );
         this.promotionPlatformStatuses = (result?.platforms || [])
           .map(normalizePromotionPlatformStatus);
       } catch (error) {
@@ -1289,6 +1293,7 @@ class WalletAssistantCard extends HTMLElement {
               <div class="promotion-platform-list">
                 ${this.promotionPlatformStatuses.map(platform => {
                   const lastScanned = platform.last_attempt_at || platform.updated_at;
+                  const hasPlatformLink = /^https?:\/\//i.test(platform.platform_url);
                   const state = !lastScanned
                     ? "Not scanned"
                     : platform.success
@@ -1298,7 +1303,12 @@ class WalletAssistantCard extends HTMLElement {
                   return `
                     <section class="promotion-platform-status">
                       <div class="promotion-platform-title">
-                        <strong>${escapeHtml(platform.platform_name)}</strong>
+                        ${hasPlatformLink ? `
+                          <a href="${escapeHtml(platform.platform_url)}" target="_blank" rel="noopener noreferrer">
+                            ${escapeHtml(platform.platform_name)}
+                            <ha-icon icon="mdi:open-in-new"></ha-icon>
+                          </a>
+                        ` : `<strong>${escapeHtml(platform.platform_name)}</strong>`}
                         <span class="promotion-platform-state ${escapeHtml(stateClass)}">${escapeHtml(state)}</span>
                       </div>
                       <dl>
