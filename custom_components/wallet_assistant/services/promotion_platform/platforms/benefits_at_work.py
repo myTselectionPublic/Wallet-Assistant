@@ -546,7 +546,7 @@ class _BenefitsAtWorkSearchParser(HTMLParser):
         self.promotions: list[Promotion] = []
         self._card_depth = 0
         self._current: dict | None = None
-        self._capture_stack: list[str] = []
+        self._capture_stack: list[tuple[int, str]] = []
         self._seen_ids: set[str] = set()
 
     def handle_starttag(self, tag: str, attrs_list: list[tuple[str, str | None]]) -> None:
@@ -558,6 +558,7 @@ class _BenefitsAtWorkSearchParser(HTMLParser):
             self._current = {
                 "title": "",
                 "promotion": "",
+                "discount": "",
                 "description": "",
                 "image_url": "",
                 "item_url": "",
@@ -591,7 +592,7 @@ class _BenefitsAtWorkSearchParser(HTMLParser):
 
         capture_field = self._capture_field(tag, classes)
         if capture_field:
-            self._capture_stack.append(capture_field)
+            self._capture_stack.append((self._card_depth, capture_field))
 
         self._set_from_attrs(attrs)
 
@@ -599,7 +600,7 @@ class _BenefitsAtWorkSearchParser(HTMLParser):
         if not self._current:
             return
 
-        if self._capture_stack and tag in {"h1", "h2", "h3", "h4", "p", "span", "small"}:
+        if self._capture_stack and self._capture_stack[-1][0] == self._card_depth:
             self._capture_stack.pop()
 
         self._card_depth -= 1
@@ -616,7 +617,7 @@ class _BenefitsAtWorkSearchParser(HTMLParser):
 
         self._current["text"].append(text)
         if self._capture_stack:
-            field = self._capture_stack[-1]
+            _, field = self._capture_stack[-1]
             existing = self._current.get(field, "")
             self._current[field] = join_text(existing, text)
 
@@ -632,8 +633,8 @@ class _BenefitsAtWorkSearchParser(HTMLParser):
             return "title"
         if "cbg3-list-item--copy" in classes or "copy" in classes:
             return "description"
-        if "cbg3-offerlistitem--infos" in classes or "discount" in classes:
-            return "promotion"
+        if any("discount" in class_name for class_name in classes):
+            return "discount"
         if tag in {"p", "span"} and ("headline" in classes or "title" in classes):
             return "title"
         return ""
@@ -656,6 +657,10 @@ class _BenefitsAtWorkSearchParser(HTMLParser):
         title = clean_text(self._current.get("title") or first_meaningful_text(text))
         title = _clean_benefits_title(title)
         item_url = self._current.get("item_url", "")
+        description = _prefix_discount(
+            self._current.get("discount", ""),
+            self._current.get("description", ""),
+        )
 
         if not title or not item_url:
             self._reset_card()
@@ -678,7 +683,7 @@ class _BenefitsAtWorkSearchParser(HTMLParser):
                 platform_name=self.platform_name,
                 title=title,
                 promotion=clean_text(self._current.get("promotion", "")),
-                description=clean_text(self._current.get("description", "")),
+                description=description,
                 image_url=self._current.get("image_url", ""),
                 item_url=item_url,
                 categories=list(
@@ -711,3 +716,16 @@ def _clean_benefits_title(value: str) -> str:
             title = title.removeprefix(prefix)
             break
     return title.rstrip(" -")
+
+
+def _prefix_discount(discount: str, description: str) -> str:
+    """Prefix a Benefits at Work offer description with its displayed discount."""
+    clean_discount = clean_text(discount)
+    clean_description = clean_text(description)
+    if not clean_discount:
+        return clean_description
+    if not clean_description or clean_description.casefold().startswith(
+        clean_discount.casefold()
+    ):
+        return clean_description or clean_discount
+    return f"{clean_discount} - {clean_description}"
