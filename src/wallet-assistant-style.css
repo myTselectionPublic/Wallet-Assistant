@@ -172,6 +172,17 @@ button ha-icon {
 	background: #284f77;
 }
 
+.toolbar .filter-panel-action {
+	width: 100%;
+	min-height: 36px;
+	padding: 0 12px;
+	background: #555;
+}
+
+.toolbar .filter-panel-action:hover {
+	background: #444;
+}
+
 .cardlist {
 	display: flex;
 	flex-direction: column;
@@ -683,6 +694,118 @@ ha-icon {
 	overflow-y: auto;
 	box-sizing: border-box;
 	box-shadow: 0 0 24px rgba(0, 0, 0, 0.25);
+}
+
+.promotion-status-dialog {
+	max-width: 440px;
+	width: min(440px, calc(100vw - 32px));
+	color: #222;
+}
+
+.promotion-status-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 14px;
+}
+
+.promotion-status-header h3 {
+	margin: 0;
+}
+
+.promotion-status-header .dialog-close-button {
+	flex: 0 0 36px;
+	width: 36px;
+	min-width: 36px;
+	height: 36px;
+	min-height: 36px;
+	padding: 0;
+}
+
+.promotion-status-message {
+	padding: 12px 0;
+	color: #555;
+}
+
+.promotion-status-message.error,
+.promotion-platform-error {
+	color: #b00020;
+}
+
+.promotion-platform-list {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.promotion-platform-status {
+	padding: 12px;
+	border: 1px solid #ddd;
+	border-radius: 8px;
+	background: #f7f7f7;
+}
+
+.promotion-platform-title {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	margin-bottom: 8px;
+}
+
+.promotion-platform-state {
+	flex: 0 0 auto;
+	padding: 3px 7px;
+	border-radius: 999px;
+	background: #e0e0e0;
+	font-size: 0.78em;
+	font-weight: 700;
+}
+
+.promotion-platform-state.ok {
+	background: #d7f2df;
+	color: #17652d;
+}
+
+.promotion-platform-state.stale,
+.promotion-platform-state.not-scanned {
+	background: #fff0c2;
+	color: #765600;
+}
+
+.promotion-platform-state.error {
+	background: #f9d7dc;
+	color: #8b1024;
+}
+
+.promotion-platform-status dl {
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+	margin: 0;
+}
+
+.promotion-platform-status dl > div {
+	display: flex;
+	justify-content: space-between;
+	gap: 16px;
+}
+
+.promotion-platform-status dt {
+	color: #666;
+}
+
+.promotion-platform-status dd {
+	margin: 0;
+	font-weight: 600;
+	text-align: right;
+}
+
+.promotion-platform-error {
+	margin-top: 8px;
+	font-size: 0.85em;
+	overflow-wrap: anywhere;
 }
 
 .scanner-dialog {

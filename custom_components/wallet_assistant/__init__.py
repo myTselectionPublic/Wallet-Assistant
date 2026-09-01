@@ -28,6 +28,7 @@ from .api import (
     WalletAssistantItemAPI,
     WalletAssistantListAPI,
     WalletAssistantPromotionsAPI,
+    WalletAssistantPromotionStatusAPI,
     WalletAssistantSettingsAPI,
 )
 from .const import (
@@ -85,6 +86,7 @@ async def _async_setup_once(hass: HomeAssistant) -> None:
     hass.http.register_view(WalletAssistantListAPI(hass))
     hass.http.register_view(WalletAssistantSettingsAPI(hass))
     hass.http.register_view(WalletAssistantPromotionsAPI(hass))
+    hass.http.register_view(WalletAssistantPromotionStatusAPI(hass))
     hass.http.register_view(WalletAssistantItemAPI(hass))
 
     hass.data[DOMAIN]["setup_complete"] = True

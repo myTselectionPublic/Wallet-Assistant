@@ -271,6 +271,33 @@ function normalizePromotion(promotion) {
   };
 }
 
+function normalizePromotionPlatformStatus(status) {
+  const parsedCount = Number.parseInt(status?.count, 10);
+  return {
+    platform_id: String(status?.platform_id || ""),
+    platform_name: String(status?.platform_name || status?.platform_id || "Unknown platform"),
+    count: Number.isFinite(parsedCount) ? Math.max(0, parsedCount) : 0,
+    success: status?.success === true,
+    stale: status?.stale === true,
+    error: String(status?.error || ""),
+    updated_at: String(status?.updated_at || ""),
+    last_attempt_at: String(status?.last_attempt_at || "")
+  };
+}
+
+function formatPromotionScanTime(value) {
+  if (!value) return "Never";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
 function getCameraScanErrorMessage(error = null) {
   const protocol = window.location?.protocol || "";
   const hostname = window.location?.hostname || "";
@@ -363,6 +390,11 @@ class WalletAssistantCard extends HTMLElement {
     this._promotionSearchTimer = null;
     this._promotionSearchPromise = null;
     this._promotionSearchPromiseQuery = "";
+    this.showPromotionStatus = false;
+    this.promotionPlatformStatuses = [];
+    this.promotionStatusLoading = false;
+    this.promotionStatusError = "";
+    this._promotionStatusPromise = null;
     this._settingsLoaded = false;
     this._settingsLoadPromise = null;
     this._cardsLoaded = false;
@@ -398,6 +430,10 @@ class WalletAssistantCard extends HTMLElement {
           <button class="filter-chip" id="type-loyalty" type="button">Cards</button>
           <button class="filter-chip" id="type-voucher" type="button">Vouchers</button>
         </div>
+        <button id="promotion-status" class="filter-panel-action" type="button">
+          <ha-icon icon="mdi:cloud-check-outline"></ha-icon>
+          Promotion platform status
+        </button>
       </div>
     `;
 
@@ -438,6 +474,9 @@ class WalletAssistantCard extends HTMLElement {
         this.cardViewMode = this.cardViewMode === "list" ? "grid" : "list";
         this.render();
       });
+
+    this.toolbarContainer.querySelector("#promotion-status")
+      ?.addEventListener("click", () => this.openPromotionStatus());
 
     ["all", "own", "others"].forEach(owner => {
       this.toolbarContainer.querySelector(`#owner-${owner}`)
@@ -615,6 +654,38 @@ class WalletAssistantCard extends HTMLElement {
       this._promotionSearchPromise = null;
       this._promotionSearchPromiseQuery = "";
     }
+  }
+
+  async openPromotionStatus() {
+    this.showPromotionStatus = true;
+    this.promotionStatusError = "";
+    this.render();
+
+    if (!this._hass || this._promotionStatusPromise) return this._promotionStatusPromise;
+    this.promotionStatusLoading = true;
+    this.render();
+
+    this._promotionStatusPromise = (async () => {
+      try {
+        const result = await this._hass.callApi("get", `${API_PATH}/promotions/status`);
+        this.promotionPlatformStatuses = (result?.platforms || [])
+          .map(normalizePromotionPlatformStatus);
+      } catch (error) {
+        console.warn("Unable to load promotion platform status.", error);
+        this.promotionStatusError = "Unable to load promotion platform status.";
+      } finally {
+        this.promotionStatusLoading = false;
+        this._promotionStatusPromise = null;
+        this.render();
+      }
+    })();
+
+    return this._promotionStatusPromise;
+  }
+
+  closePromotionStatus() {
+    this.showPromotionStatus = false;
+    this.render();
   }
 
   async loadSettings({ force = false } = {}) {
@@ -1196,6 +1267,59 @@ class WalletAssistantCard extends HTMLElement {
           </div>
         </div>
       ` : ""}
+      ${this.showPromotionStatus ? `
+        <div class="dialog-overlay" id="promotion-status-dialog">
+          <div class="dialog-content promotion-status-dialog" role="dialog" aria-modal="true" aria-labelledby="promotion-status-title">
+            <div class="promotion-status-header">
+              <h3 id="promotion-status-title">Promotion platform status</h3>
+              <button id="close-promotion-status" class="dialog-close-button" type="button" title="Close" aria-label="Close">
+                <ha-icon icon="mdi:close"></ha-icon>
+              </button>
+            </div>
+            ${this.promotionStatusLoading ? `
+              <div class="promotion-status-message">Loading platform status...</div>
+            ` : ""}
+            ${this.promotionStatusError ? `
+              <div class="promotion-status-message error">${escapeHtml(this.promotionStatusError)}</div>
+            ` : ""}
+            ${!this.promotionStatusLoading && !this.promotionStatusError && !this.promotionPlatformStatuses.length ? `
+              <div class="promotion-status-message">No enabled promotion platforms.</div>
+            ` : ""}
+            ${this.promotionPlatformStatuses.length ? `
+              <div class="promotion-platform-list">
+                ${this.promotionPlatformStatuses.map(platform => {
+                  const lastScanned = platform.last_attempt_at || platform.updated_at;
+                  const state = !lastScanned
+                    ? "Not scanned"
+                    : platform.success
+                      ? (platform.stale ? "Stale" : "OK")
+                      : "Error";
+                  const stateClass = state.toLowerCase().replace(" ", "-");
+                  return `
+                    <section class="promotion-platform-status">
+                      <div class="promotion-platform-title">
+                        <strong>${escapeHtml(platform.platform_name)}</strong>
+                        <span class="promotion-platform-state ${escapeHtml(stateClass)}">${escapeHtml(state)}</span>
+                      </div>
+                      <dl>
+                        <div>
+                          <dt>Promotions fetched</dt>
+                          <dd>${escapeHtml(platform.count)}</dd>
+                        </div>
+                        <div>
+                          <dt>Last scanned</dt>
+                          <dd>${escapeHtml(formatPromotionScanTime(lastScanned))}</dd>
+                        </div>
+                      </dl>
+                      ${platform.error ? `<div class="promotion-platform-error">${escapeHtml(platform.error)}</div>` : ""}
+                    </section>
+                  `;
+                }).join("")}
+              </div>
+            ` : ""}
+          </div>
+        </div>
+      ` : ""}
       ${this.showAddDialog ? `
         <div class="dialog-overlay" id="add-dialog">
           <div class="dialog-content">
@@ -1264,6 +1388,15 @@ class WalletAssistantCard extends HTMLElement {
       addType?.addEventListener("change", (event) => { this._inputState.item_type = event.target.value; });
       addExpiresOn?.addEventListener("input", (event) => { this._inputState.expires_on = event.target.value; });
       addNotes?.addEventListener("input", (event) => { this._inputState.notes = event.target.value; });
+    }
+
+    if (this.showPromotionStatus) {
+      this.dynamicContainer.querySelector("#close-promotion-status")
+        ?.addEventListener("click", () => this.closePromotionStatus());
+      this.dynamicContainer.querySelector("#promotion-status-dialog")
+        ?.addEventListener("click", (event) => {
+          if (event.target === event.currentTarget) this.closePromotionStatus();
+        });
     }
 
     if (this.selectedCard) {
