@@ -1306,7 +1306,6 @@ class WalletAssistantCard extends HTMLElement {
                         ${hasPlatformLink ? `
                           <a href="${escapeHtml(platform.platform_url)}" target="_blank" rel="noopener noreferrer">
                             ${escapeHtml(platform.platform_name)}
-                            <ha-icon icon="mdi:open-in-new"></ha-icon>
                           </a>
                         ` : `<strong>${escapeHtml(platform.platform_name)}</strong>`}
                         <span class="promotion-platform-state ${escapeHtml(stateClass)}">${escapeHtml(state)}</span>

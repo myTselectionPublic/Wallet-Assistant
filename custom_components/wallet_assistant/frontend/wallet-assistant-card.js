@@ -1160,7 +1160,6 @@ ha-icon {\r
                         ${nt?`
                           <a href="${H(O.platform_url)}" target="_blank" rel="noopener noreferrer">
                             ${H(O.platform_name)}
-                            <ha-icon icon="mdi:open-in-new"></ha-icon>
                           </a>
                         `:`<strong>${H(O.platform_name)}</strong>`}
                         <span class="promotion-platform-state ${H(Ft)}">${H(lt)}</span>
