@@ -1292,9 +1292,9 @@ class WalletAssistantCard extends HTMLElement {
             ${this.promotionPlatformStatuses.length ? `
               <div class="promotion-platform-list">
                 ${this.promotionPlatformStatuses.map(platform => {
-                  const lastScanned = platform.last_attempt_at || platform.updated_at;
+                  const hasFetchAttempt = platform.last_attempt_at || platform.updated_at;
                   const hasPlatformLink = /^https?:\/\//i.test(platform.platform_url);
-                  const state = !lastScanned
+                  const state = !hasFetchAttempt
                     ? "Not scanned"
                     : platform.success
                       ? (platform.stale ? "Stale" : "OK")
@@ -1317,8 +1317,8 @@ class WalletAssistantCard extends HTMLElement {
                           <dd>${escapeHtml(platform.count)}</dd>
                         </div>
                         <div>
-                          <dt>Last scanned</dt>
-                          <dd>${escapeHtml(formatPromotionScanTime(lastScanned))}</dd>
+                          <dt>Last successful fetch</dt>
+                          <dd>${escapeHtml(formatPromotionScanTime(platform.updated_at))}</dd>
                         </div>
                       </dl>
                       ${platform.error ? `<div class="promotion-platform-error">${escapeHtml(platform.error)}</div>` : ""}
