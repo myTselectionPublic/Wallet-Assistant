@@ -77,7 +77,7 @@ if (!window.customCards.some((card) => card.type === CARD_TYPE)) {
     name: "Wallet Assistant",
     description: "Manage loyalty cards, vouchers, and promotions.",
     preview: false,
-    documentationURL: "https://github.com/myTselection/Wallet-Assistant",
+    documentationURL: "https://github.com/myTselectionPublic/Wallet-Assistant",
   });
 }
 

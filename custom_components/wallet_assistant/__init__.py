@@ -56,6 +56,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await _async_setup_once(hass)
     entry.async_on_unload(entry.add_update_listener(_async_options_updated))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    entry.async_create_background_task(
+        hass,
+        _async_refresh_promotions(hass),
+        "wallet_assistant_refresh",
+    )
+    return True
+
+
+async def _async_refresh_promotions(hass: HomeAssistant) -> None:
+    """Refresh external platforms without delaying integration startup."""
     _LOGGER.info("Starting promotion platform refresh after integration startup")
     registry = PromotionPlatformRegistry(hass)
     cache = await registry.async_refresh(force=True)
@@ -65,7 +75,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         len(cache.get("platforms", [])),
         len(cache.get("promotions", [])),
     )
-    return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -128,7 +137,7 @@ async def _async_register_lovelace_resource(hass: HomeAssistant) -> None:
         return
 
     frontend_file = Path(__file__).parent / "frontend" / "wallet-assistant-card.js"
-    frontend_hash = hashlib.sha256(frontend_file.read_bytes()).hexdigest()[:10]
+    frontend_hash = await hass.async_add_executor_job(_frontend_hash, frontend_file)
     resource_url = f"{FRONTEND_PATH}?v={VERSION}-{frontend_hash}"
     if hasattr(resources, "async_get_info"):
         await resources.async_get_info()
@@ -173,6 +182,11 @@ async def _async_register_lovelace_resource(hass: HomeAssistant) -> None:
         }
     )
     _LOGGER.info("Registered Wallet Assistant dashboard resource: %s", resource_url)
+
+
+def _frontend_hash(frontend_file: Path) -> str:
+    """Read and hash the bundle in the executor."""
+    return hashlib.sha256(frontend_file.read_bytes()).hexdigest()[:10]
 
 
 def _normalize_resource_url(url: str) -> str:

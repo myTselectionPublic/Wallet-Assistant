@@ -30,7 +30,6 @@ async def async_setup_entry(
             ExpiringVouchersSensor(hass, entry),
             PromotionPlatformPromotionsSensor(hass, entry),
         ],
-        True,
     )
 
 
@@ -93,6 +92,8 @@ class PromotionPlatformPromotionsSensor(SensorEntity):
                 self._handle_promotion_platforms_updated,
             )
         )
+        # Initial state comes from disk; external refresh runs in the background.
+        self._set_cache(await self.registry.async_load())
 
     async def async_update(self) -> None:
         cache = await self.registry.async_refresh()
