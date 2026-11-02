@@ -1,0 +1,76 @@
+{
+  "config": {
+    "abort": {
+      "already_configured": "Wallet Assistant is already configured."
+    },
+    "step": {
+      "user": {
+        "description": "Set up Wallet Assistant for loyalty cards, vouchers, and promotions.",
+        "title": "Wallet Assistant"
+      }
+    }
+  },
+  "options": {
+    "error": {
+      "invalid_platform_url": "Enabled platforms must include a valid base address.",
+      "invalid_price_watch_url": "Enter a valid search URL template that includes the query placeholder.",
+      "invalid_totp_seed": "Enter a valid base32 TOTP seed or otpauth URI 2FA code.",
+      "missing_name": "Enter a name."
+    },
+    "step": {
+      "init": {
+        "data": {
+          "section": "Configuration area"
+        },
+        "description": "Choose what you want to configure.",
+        "menu_options": {
+          "price_watch_services": "Price-watch sites",
+          "promotion_platforms": "Promotion platforms"
+        },
+        "title": "Wallet Assistant options"
+      },
+      "price_watch_service": {
+        "data": {
+          "enabled": "Enabled",
+          "logo_slug": "Logo.dev slug",
+          "move_down": "Move down",
+          "move_up": "Move up",
+          "name": "Name",
+          "remove": "Remove this site",
+          "url_template": "Search URL template"
+        },
+        "description": "The URL template must include {query}, which is replaced with the dashboard filter text. Use a domain such as example.com for the optional Logo.dev slug.",
+        "title": "Price-watch site"
+      },
+      "price_watch_services": {
+        "data": {
+          "entry": "Price-watch site"
+        },
+        "description": "Choose a price-watch site to edit, or add a new one. Changes are saved when you submit the site.",
+        "title": "Price-watch sites"
+      },
+      "promotion_platform": {
+        "data": {
+          "base_url": "Login or base address",
+          "enabled": "Enabled",
+          "name": "Name",
+          "password": "Password",
+          "session_cookie": "Authenticated session cookie (optional)",
+          "platform_id": "Platform ID",
+          "remove": "Remove this platform",
+          "totp_seed": "Two-factor authentication seed",
+          "username": "Username"
+        },
+        "description": "Credentials are saved in the integration options and used by platform adapters that support authentication. ENGIE Benefits needs only its public benefits URL. Argenco credentials are optional and are used to request account-specific voucher data when available. For Argenco and Edenred, provide the base32 TOTP seed used by your authenticator app when two-factor authentication is enabled. CrelanCo Deals currently uses an interactive reCAPTCHA; paste its shop_sid cookie here to use an authenticated browser session.",
+        "title": "Promotion platform"
+      },
+      "promotion_platforms": {
+        "data": {
+          "entry": "Promotion platform"
+        },
+        "description": "Choose a supported promotion platform to configure. Promotion data is refreshed at most once every 7 days.",
+        "title": "Promotion platforms"
+      }
+    }
+  }
+}

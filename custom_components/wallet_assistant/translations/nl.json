@@ -1,0 +1,76 @@
+{
+  "config": {
+    "abort": {
+      "already_configured": "Wallet Assistant is al geconfigureerd."
+    },
+    "step": {
+      "user": {
+        "description": "Stel Wallet Assistant in voor klantenkaarten, waardebonnen en promoties.",
+        "title": "Wallet Assistant"
+      }
+    }
+  },
+  "options": {
+    "error": {
+      "invalid_platform_url": "Ingeschakelde platformen moeten een geldig basisadres hebben.",
+      "invalid_price_watch_url": "Voer een geldig sjabloon voor de zoek-URL in met de tijdelijke aanduiding voor de zoekopdracht.",
+      "invalid_totp_seed": "Voer een geldige base32-TOTP-sleutel of otpauth-URI 2FA code in.",
+      "missing_name": "Voer een naam in."
+    },
+    "step": {
+      "init": {
+        "data": {
+          "section": "Configuratieonderdeel"
+        },
+        "description": "Kies wat je wilt configureren.",
+        "menu_options": {
+          "price_watch_services": "Prijsvergelijkingssites",
+          "promotion_platforms": "Promotieplatformen"
+        },
+        "title": "Opties voor Wallet Assistant"
+      },
+      "price_watch_service": {
+        "data": {
+          "enabled": "Ingeschakeld",
+          "logo_slug": "Logo.dev-slug",
+          "move_down": "Omlaag verplaatsen",
+          "move_up": "Omhoog verplaatsen",
+          "name": "Naam",
+          "remove": "Deze site verwijderen",
+          "url_template": "Sjabloon voor de zoek-URL"
+        },
+        "description": "Het URL-sjabloon moet {query} bevatten. Dit wordt vervangen door de filtertekst van het dashboard. Gebruik een domein zoals example.com voor de optionele Logo.dev-slug.",
+        "title": "Prijsvergelijkingssite"
+      },
+      "price_watch_services": {
+        "data": {
+          "entry": "Prijsvergelijkingssite"
+        },
+        "description": "Kies een prijsvergelijkingssite om te bewerken of voeg een nieuwe toe. Wijzigingen worden opgeslagen wanneer je de site bevestigt.",
+        "title": "Prijsvergelijkingssites"
+      },
+      "promotion_platform": {
+        "data": {
+          "base_url": "Aanmeld- of basisadres",
+          "enabled": "Ingeschakeld",
+          "name": "Naam",
+          "password": "Wachtwoord",
+          "session_cookie": "Cookie van een aangemelde sessie (optioneel)",
+          "platform_id": "Platform-ID",
+          "remove": "Dit platform verwijderen",
+          "totp_seed": "Sleutel voor tweestapsverificatie",
+          "username": "Gebruikersnaam"
+        },
+        "description": "Aanmeldgegevens worden opgeslagen in de integratieopties en gebruikt door platformadapters die aanmelding ondersteunen. ENGIE Benefits heeft alleen de openbare voordelen-URL nodig. Aanmeldgegevens voor Argenco zijn optioneel en worden gebruikt om accountspecifieke gegevens over waardebonnen op te vragen wanneer die beschikbaar zijn. Geef voor Argenco en Edenred de base32-TOTP-sleutel van je authenticator-app op als tweestapsverificatie is ingeschakeld. CrelanCo Deals gebruikt momenteel een interactieve reCAPTCHA; plak hier de shop_sid-cookie om een aangemelde browsersessie te gebruiken.",
+        "title": "Promotieplatform"
+      },
+      "promotion_platforms": {
+        "data": {
+          "entry": "Promotieplatform"
+        },
+        "description": "Kies een ondersteund promotieplatform om te configureren. Promotiegegevens worden maximaal één keer per 7 dagen vernieuwd.",
+        "title": "Promotieplatformen"
+      }
+    }
+  }
+}

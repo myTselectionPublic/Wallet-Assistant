@@ -14,7 +14,7 @@
     "error": {
       "invalid_platform_url": "Enabled platforms must include a valid base address.",
       "invalid_price_watch_url": "Enter a valid search URL template that includes the query placeholder.",
-      "invalid_totp_seed": "Enter a valid base32 TOTP seed or otpauth URI.",
+      "invalid_totp_seed": "Enter a valid base32 TOTP seed or otpauth URI 2FA code.",
       "missing_name": "Enter a name."
     },
     "step": {
