@@ -10,6 +10,7 @@
   <img src="custom_components/wallet_assistant/brand/logo.png" alt="Wallet Assistant" width="720">
 </p>
 
+
 ## Wallet Assistant - Loyalty cards, vouchers and shop promotions - Home Assistant Custom Integration
 
 A combined Home Assistant custom integration and Lovelace dashboard card that makes it easy to manage loyalty cards, vouchers, and store promotions directly within Home Assistant.
@@ -74,6 +75,37 @@ So I started with the Card Wallet code and extended it.
 ```yaml
 type: custom:wallet-assistant-card
 ```
+
+### Card options
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `card_view_mode` | `grid` | Initial layout: `grid` or `list`. |
+| `show_price_watch` | `true` | Set to `false` to hide the "Price watch" links below the search results by default (useful if you only store loyalty cards). |
+
+Each user can also switch the price-watch links on or off with the **Price watch** button in the filter panel (funnel icon). That choice is remembered per user in the browser and takes precedence over `show_price_watch`.
+
+### Editing items of other users
+
+Users can edit and delete only the items they added. Home Assistant **administrators** can edit and delete every item; the item keeps its original owner.
+
+```yaml
+type: custom:wallet-assistant-card
+card_view_mode: list
+show_price_watch: false
+```
+
+## Logos
+
+The logo field of an item (and the optional third column of a price-watch site) accepts:
+
+* a **Logo.dev slug / domain**, e.g. `ikea.com`, or
+* a **local image path**, e.g. `/local/images/my_card_logo.png` (a file in the Home Assistant `www` folder). Handy for national health / tax ID cards, regional cards or local shops without a Logo.dev entry, or
+* an **external image URL** (`https://...`), only after an administrator enables **Settings > Devices & services > Wallet Assistant > Configure > Logos and images > Allow logos from external websites**. This is off by default because every viewer's browser then downloads the image directly from that website, which can see their IP address, browser and when the dashboard is opened; any user who can add or edit a card can pick such an address.
+
+When a user saves a card with an `https://` logo, the card asks for confirmation and explains the risk; the card is saved only after the user accepts. If external logos are disabled, the user gets a message explaining how an administrator can enable them, and the card is not saved with that logo. Image paths and URLs that are not allowed show the card initial instead of a logo.
+
+Logos fetched from Logo.dev are downloaded by Home Assistant and cached in the `wallet_assistant_logos` folder of the config directory. The dashboard reads them through the integration (`/api/wallet_assistant/logo`), so logos keep showing when Logo.dev is down. Cached logos are refreshed after 30 days; when the refresh fails the cached copy is kept. If the integration cannot provide a logo, the card falls back to loading it directly from Logo.dev.
 
 ## Storage
 

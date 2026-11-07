@@ -6,6 +6,7 @@ from homeassistant import config_entries
 from homeassistant.helpers import selector
 
 from .const import (
+    CONF_ALLOW_EXTERNAL_LOGOS,
     CONF_PROMOTION_PLATFORMS,
     CONF_PRICE_WATCH_SERVICES,
     DOMAIN,
@@ -32,6 +33,7 @@ FIELD_SESSION_COOKIE = "session_cookie"
 
 ADD_ENTRY = "__add__"
 SECTION_FINISH = "finish"
+SECTION_LOGOS = "logos"
 SECTION_PRICE_WATCH = "price_watch_services"
 SECTION_PROMOTIONS = "promotion_platforms"
 
@@ -62,6 +64,9 @@ class WalletAssistantOptionsFlow(config_entries.OptionsFlow):
         self._promotion_platforms = parse_promotion_platforms_config(
             config_entry.options.get(CONF_PROMOTION_PLATFORMS)
         )
+        self._allow_external_logos = bool(
+            config_entry.options.get(CONF_ALLOW_EXTERNAL_LOGOS, False)
+        )
         self._selected_price_watch_index: int | None = None
         self._selected_platform_index: int | None = None
 
@@ -72,6 +77,8 @@ class WalletAssistantOptionsFlow(config_entries.OptionsFlow):
                 return await self.async_step_price_watch_services()
             if selected == SECTION_PROMOTIONS:
                 return await self.async_step_promotion_platforms()
+            if selected == SECTION_LOGOS:
+                return await self.async_step_logos()
             return await self.async_step_init()
 
         return self.async_show_form(
@@ -89,9 +96,30 @@ class WalletAssistantOptionsFlow(config_entries.OptionsFlow):
                                     "value": SECTION_PROMOTIONS,
                                     "label": "Promotion platforms",
                                 },
+                                {
+                                    "value": SECTION_LOGOS,
+                                    "label": "Logos and images",
+                                },
                             ]
                         )
                     )
+                }
+            ),
+        )
+
+    async def async_step_logos(self, user_input=None):
+        if user_input is not None:
+            self._allow_external_logos = bool(user_input.get(CONF_ALLOW_EXTERNAL_LOGOS))
+            return self._create_options_entry()
+
+        return self.async_show_form(
+            step_id="logos",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_ALLOW_EXTERNAL_LOGOS,
+                        default=self._allow_external_logos,
+                    ): bool,
                 }
             ),
         )
@@ -315,6 +343,7 @@ class WalletAssistantOptionsFlow(config_entries.OptionsFlow):
             data={
                 CONF_PRICE_WATCH_SERVICES: self._price_watch_services,
                 CONF_PROMOTION_PLATFORMS: self._promotion_platforms,
+                CONF_ALLOW_EXTERNAL_LOGOS: self._allow_external_logos,
             },
         )
 

@@ -4,6 +4,7 @@ from homeassistant.components.http import HomeAssistantView
 
 from ..const import (
     API_BASE,
+    CONF_ALLOW_EXTERNAL_LOGOS,
     CONF_PRICE_WATCH_SERVICES,
     DEFAULT_PRICE_WATCH_SERVICES,
     DOMAIN,
@@ -38,6 +39,7 @@ class WalletAssistantSettingsAPI(HomeAssistantView):
         return self.json(
             {
                 "price_watch_services": enabled_services,
+                "allow_external_logos": bool(options.get(CONF_ALLOW_EXTERNAL_LOGOS, False)),
                 "promotion_platforms": [
                     platform.public_dict()
                     for platform in get_promotion_platform_configs(self.hass)

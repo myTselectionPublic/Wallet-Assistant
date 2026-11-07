@@ -28,6 +28,7 @@ except ImportError:
 from .api import (
     WalletAssistantItemAPI,
     WalletAssistantListAPI,
+    WalletAssistantLogoAPI,
     WalletAssistantPromotionsAPI,
     WalletAssistantPromotionStatusAPI,
     WalletAssistantSettingsAPI,
@@ -97,6 +98,8 @@ async def _async_setup_once(hass: HomeAssistant) -> None:
     hass.http.register_view(WalletAssistantSettingsAPI(hass))
     hass.http.register_view(WalletAssistantPromotionsAPI(hass))
     hass.http.register_view(WalletAssistantPromotionStatusAPI(hass))
+    # Must be registered before the item view: /logo would otherwise match /{item_id}.
+    hass.http.register_view(WalletAssistantLogoAPI(hass))
     hass.http.register_view(WalletAssistantItemAPI(hass))
 
     hass.data[DOMAIN]["setup_complete"] = True

@@ -25,9 +25,17 @@
         "description": "Choose what you want to configure.",
         "menu_options": {
           "price_watch_services": "Price-watch sites",
-          "promotion_platforms": "Promotion platforms"
+          "promotion_platforms": "Promotion platforms",
+          "logos": "Logos and images"
         },
         "title": "Wallet Assistant options"
+      },
+      "logos": {
+        "data": {
+          "allow_external_logos": "Allow logos from external websites (https://)"
+        },
+        "description": "Logos can always be a Logo.dev domain (cached locally) or a file in your www folder (/local/...). When you enable this option, a logo can also be the https:// address of an image on any website.\n\nRisk: every time someone opens the dashboard, their browser downloads that image directly from the external website. That website can see their IP address, browser and when the dashboard is opened, and the image can change or disappear at any time. Any user who can add or edit a card can choose such an address. Only enable this if you accept this risk.",
+        "title": "Logos and images"
       },
       "price_watch_service": {
         "data": {

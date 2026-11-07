@@ -25,6 +25,11 @@ const LOGO_DEV_IMAGE_SIZE = 64;
 const UI_STATE_STORAGE_PREFIX = `${API_PATH}.ui_state.v1`;
 const UI_STATE_TTL_MS = 12 * 60 * 60 * 1000;
 const logoImageCache = new Map();
+const LOCAL_LOGO_PREFIX = "local:";
+const SLUG_LOGO_PREFIX = "slug:";
+// Set by the card when it receives `hass`; used to read logos from the
+// integration's local cache (authenticated endpoint).
+let logoHass = null;
 const DEFAULT_PRICE_WATCH_SERVICES = [
   {
     name: "Google Shopping",
@@ -103,33 +108,130 @@ function getCardInitial(name) {
   return String(name || "?").trim().charAt(0).toUpperCase() || "?";
 }
 
+// Opt-in from the integration options ("Logos and images"); off by default.
+let allowExternalLogos = false;
+
+function getLogoInputPlaceholder() {
+  return allowExternalLogos
+    ? "Logo.dev slug, /local/ path or https:// image URL (optional)"
+    : "Logo.dev slug or /local/ image path (optional)";
+}
+
+// Called before saving a card. Returns false when the card must not be saved yet.
+function confirmLogoChoice(value, { alertFn = window.alert, confirmFn = window.confirm } = {}) {
+  const logo = String(value ?? "").trim();
+  if (/^http:\/\//i.test(logo)) {
+    alertFn("Only secure image addresses (https://) can be used as logo. Use an https:// address, a /local/ path or a Logo.dev domain.");
+    return false;
+  }
+  if (!isExternalImageUrl(logo)) return true;
+  if (!allowExternalLogos) {
+    alertFn(
+      "Logos from external websites are disabled.\n\n" +
+      "An administrator can enable them in Settings > Devices & services > Wallet Assistant > Configure > Logos and images. " +
+      "Until then, use a Logo.dev domain (e.g. ikea.com) or an image in your www folder (/local/...)."
+    );
+    return false;
+  }
+  return confirmFn(
+    "This logo is loaded from an external website:\n" + logo + "\n\n" +
+    "Every time someone opens the dashboard, their browser downloads the image from that website. " +
+    "The website can see their IP address, browser and when the dashboard is opened, and the image can change or disappear.\n\n" +
+    "Press OK to accept this risk and save, or Cancel to change the logo."
+  );
+}
+
+function isExternalImageUrl(value) {
+  return /^https:\/\/[^\s]+$/i.test(value);
+}
+
+function isDirectImagePath(value) {
+  // Files from the Home Assistant www folder (/local/...) are always allowed.
+  // External https:// images only when an admin accepted the risk in the
+  // integration options: the viewer's browser contacts that third-party server.
+  if (value.startsWith("/local/") && !value.includes("..") && !value.includes("\\")) return true;
+  return allowExternalLogos && isExternalImageUrl(value);
+}
+
+function getLogoDevUrl(slug, size = LOGO_DEV_IMAGE_SIZE) {
+  return `https://img.logo.dev/${encodeURIComponent(slug)}?token=${LOGO_DEV_PUBLISHABLE_KEY}&size=${size}&format=webp&retina=true`;
+}
+
+// Returns a logo reference for data-logo-url: either a direct image path/URL
+// ("local:<path>") or a Logo.dev slug ("slug:<size>:<slug>").
 function getLogoUrl(slug, size = LOGO_DEV_IMAGE_SIZE) {
   const cleanSlug = String(slug ?? "").trim();
   if (!cleanSlug) return "";
-  return `https://img.logo.dev/${encodeURIComponent(cleanSlug)}?token=${LOGO_DEV_PUBLISHABLE_KEY}&size=${size}&format=webp&retina=true`;
+  if (isDirectImagePath(cleanSlug)) return `${LOCAL_LOGO_PREFIX}${cleanSlug}`;
+  // A URL or path that is not allowed is never sent to Logo.dev: show the placeholder.
+  if (cleanSlug.includes("/") || cleanSlug.includes(":")) return "";
+  return `${SLUG_LOGO_PREFIX}${size}:${cleanSlug}`;
 }
 
-function getLogoCacheEntry(url) {
-  let entry = logoImageCache.get(url);
+function loadImage(src) {
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.onload = () => resolve(true);
+    image.onerror = () => resolve(false);
+    image.src = src;
+  });
+}
+
+async function fetchCachedLogo(slug, size) {
+  if (!logoHass?.fetchWithAuth) return "";
+  try {
+    const params = new URLSearchParams({ slug, size: String(size) });
+    const response = await logoHass.fetchWithAuth(`/api/${API_PATH}/logo?${params}`);
+    if (!response.ok) return "";
+    const blob = await response.blob();
+    if (!blob.size || !String(blob.type).startsWith("image/")) return "";
+    return URL.createObjectURL(blob);
+  } catch (error) {
+    console.debug("Wallet Assistant logo cache unavailable; using Logo.dev directly.", error);
+    return "";
+  }
+}
+
+async function resolveLogoSource(ref) {
+  if (ref.startsWith(LOCAL_LOGO_PREFIX)) {
+    const src = ref.slice(LOCAL_LOGO_PREFIX.length);
+    return (await loadImage(src)) ? src : "";
+  }
+
+  if (ref.startsWith(SLUG_LOGO_PREFIX)) {
+    const rest = ref.slice(SLUG_LOGO_PREFIX.length);
+    const separator = rest.indexOf(":");
+    const size = Number(rest.slice(0, separator)) || LOGO_DEV_IMAGE_SIZE;
+    const slug = rest.slice(separator + 1);
+
+    // 1. Local copy kept by Home Assistant (survives Logo.dev outages).
+    const cachedSrc = await fetchCachedLogo(slug, size);
+    if (cachedSrc && await loadImage(cachedSrc)) return cachedSrc;
+    if (cachedSrc) URL.revokeObjectURL(cachedSrc);
+
+    // 2. Fallback: Logo.dev directly from the browser.
+    const remoteSrc = getLogoDevUrl(slug, size);
+    return (await loadImage(remoteSrc)) ? remoteSrc : "";
+  }
+
+  return (await loadImage(ref)) ? ref : "";
+}
+
+function getLogoCacheEntry(ref) {
+  let entry = logoImageCache.get(ref);
   if (entry) return entry;
 
   entry = {
     status: "loading",
+    src: "",
     promise: null
   };
-  entry.promise = new Promise((resolve) => {
-    const image = new Image();
-    image.onload = () => {
-      entry.status = "loaded";
-      resolve(entry);
-    };
-    image.onerror = () => {
-      entry.status = "failed";
-      resolve(entry);
-    };
-    image.src = url;
+  entry.promise = resolveLogoSource(ref).then((src) => {
+    entry.src = src;
+    entry.status = src ? "loaded" : "failed";
+    return entry;
   });
-  logoImageCache.set(url, entry);
+  logoImageCache.set(ref, entry);
   return entry;
 }
 
@@ -148,31 +250,37 @@ function replaceLogoWithPlaceholder(img) {
 }
 
 function loadCachedLogoImage(img) {
-  const url = img.dataset.logoUrl;
-  if (!url) {
+  const ref = img.dataset.logoUrl;
+  if (!ref) {
     replaceLogoWithPlaceholder(img);
     return;
   }
 
-  const entry = getLogoCacheEntry(url);
+  const entry = getLogoCacheEntry(ref);
   if (entry.status === "failed") {
     replaceLogoWithPlaceholder(img);
     return;
   }
 
   if (entry.status === "loaded") {
-    img.src = url;
+    img.src = entry.src;
     return;
   }
 
   entry.promise.then((resolvedEntry) => {
     if (!img.isConnected) return;
     if (resolvedEntry.status === "loaded") {
-      img.src = url;
+      img.src = resolvedEntry.src;
     } else {
       replaceLogoWithPlaceholder(img);
     }
   });
+}
+
+function canManageCard(card, hass) {
+  const user = hass?.user;
+  if (!card || !user) return false;
+  return card.user_id === user.id || user.is_admin === true;
 }
 
 function getItemId(item) {
@@ -385,6 +493,8 @@ class WalletAssistantCard extends HTMLElement {
     this.showAddDialog = false;
     this.cardViewMode = DEFAULT_CARD_VIEW_MODE;
     this.priceWatchServices = normalizePriceWatchServices();
+    this.showPriceWatch = true;
+    this._configShowPriceWatch = true;
     this.promotionMatches = [];
     this.promotionSearchQuery = "";
     this.promotionsLoading = false;
@@ -431,6 +541,10 @@ class WalletAssistantCard extends HTMLElement {
           <button class="filter-chip" id="type-loyalty" type="button">Cards</button>
           <button class="filter-chip" id="type-voucher" type="button">Vouchers</button>
         </div>
+        <button id="toggle-price-watch" class="filter-panel-action price-watch-toggle" type="button" aria-pressed="true">
+          <ha-icon icon="mdi:tag-search-outline"></ha-icon>
+          <span class="price-watch-toggle-label">Price watch</span>
+        </button>
         <button id="promotion-status" class="filter-panel-action" type="button">
           <ha-icon icon="mdi:cloud-check-outline"></ha-icon>
           Promotion platform status
@@ -479,6 +593,13 @@ class WalletAssistantCard extends HTMLElement {
     this.toolbarContainer.querySelector("#promotion-status")
       ?.addEventListener("click", () => this.openPromotionStatus());
 
+    this.toolbarContainer.querySelector("#toggle-price-watch")
+      ?.addEventListener("click", () => {
+        this.showPriceWatch = !this.showPriceWatch;
+        this.savePriceWatchPreference(this.showPriceWatch);
+        this.render();
+      });
+
     ["all", "own", "others"].forEach(owner => {
       this.toolbarContainer.querySelector(`#owner-${owner}`)
         ?.addEventListener("click", () => {
@@ -499,17 +620,22 @@ class WalletAssistantCard extends HTMLElement {
   setConfig(config) {
     this._config = config;
     this.cardViewMode = normalizeCardViewMode(config?.card_view_mode);
+    this._configShowPriceWatch = config?.show_price_watch !== false;
+    this.showPriceWatch = this.loadPriceWatchPreference() ?? this._configShowPriceWatch;
+    if (this._hass) this.render();
   }
 
   static getStubConfig() {
     return {
-      card_view_mode: DEFAULT_CARD_VIEW_MODE
+      card_view_mode: DEFAULT_CARD_VIEW_MODE,
+      show_price_watch: true
     };
   }
 
   set hass(hass) {
     const previousUserId = this._hass?.user?.id;
     this._hass = hass;
+    logoHass = hass;
     const currentUserId = hass?.user?.id;
     if (currentUserId && this._uiStateUserId !== currentUserId) {
       this.restoreUIState(currentUserId);
@@ -534,8 +660,37 @@ class WalletAssistantCard extends HTMLElement {
     return `${UI_STATE_STORAGE_PREFIX}:${encodeURIComponent(userId)}:${encodeURIComponent(locationScope)}`;
   }
 
+  getPriceWatchStorageKey(userId = this._hass?.user?.id) {
+    return userId ? `${API_PATH}.price_watch.v1:${encodeURIComponent(userId)}` : "";
+  }
+
+  // Per user and per browser; null when the user never used the toggle.
+  loadPriceWatchPreference(userId) {
+    const storageKey = this.getPriceWatchStorageKey(userId);
+    if (!storageKey) return null;
+    try {
+      const value = window.localStorage?.getItem(storageKey);
+      if (value === "on") return true;
+      if (value === "off") return false;
+    } catch (error) {
+      console.debug("Unable to read Wallet Assistant price-watch preference.", error);
+    }
+    return null;
+  }
+
+  savePriceWatchPreference(enabled) {
+    const storageKey = this.getPriceWatchStorageKey();
+    if (!storageKey) return;
+    try {
+      window.localStorage?.setItem(storageKey, enabled ? "on" : "off");
+    } catch (error) {
+      console.debug("Unable to save Wallet Assistant price-watch preference.", error);
+    }
+  }
+
   restoreUIState(userId) {
     this._uiStateUserId = userId;
+    this.showPriceWatch = this.loadPriceWatchPreference(userId) ?? this._configShowPriceWatch;
     this.selectedCard = null;
     this._pendingSelectedCardId = "";
 
@@ -701,9 +856,11 @@ class WalletAssistantCard extends HTMLElement {
       try {
         const settings = await this._hass.callApi("get", `${API_PATH}/settings`);
         this.priceWatchServices = normalizePriceWatchServices(settings?.price_watch_services);
+        allowExternalLogos = settings?.allow_external_logos === true;
       } catch (error) {
         console.warn("Unable to load Wallet Assistant settings; using default price-watch services.", error);
         this.priceWatchServices = normalizePriceWatchServices();
+        allowExternalLogos = false;
       } finally {
         this._settingsLoaded = true;
         this.render();
@@ -828,6 +985,10 @@ class WalletAssistantCard extends HTMLElement {
     const expiresOn = expiresEl?.value || "";
     const notes = notesEl?.value?.trim() || "";
     if (!name || !code) return alert("Missing fields");
+    if (!confirmLogoChoice(logoSlug)) {
+      logoSlugEl?.focus();
+      return;
+    }
     await this._hass.callApi("post", API_PATH, {
       name,
       code,
@@ -949,7 +1110,7 @@ class WalletAssistantCard extends HTMLElement {
             <input id="edit-code" type="text" placeholder="Code" value="${escapeHtml(card.code)}" />
             <button id="scan-edit-code" class="inline-icon-button" type="button" title="Scan barcode" aria-label="Scan barcode"><ha-icon icon="mdi:barcode-scan"></ha-icon></button>
           </div>
-          <input id="edit-logo-slug" type="text" value="${escapeHtml(card.logo_slug || "")}" placeholder="Logo.dev slug (optional)" />
+          <input id="edit-logo-slug" type="text" value="${escapeHtml(card.logo_slug || "")}" placeholder="${escapeHtml(getLogoInputPlaceholder())}" />
           <input id="edit-expires-on" type="date" value="${escapeHtml(card.expires_on || "")}" title="Expiry date" aria-label="Expiry date" />
           <textarea id="edit-notes" rows="3" placeholder="Note (optional)">${escapeHtml(card.notes || "")}</textarea>
           <select id="edit-format" title="Default barcode format" aria-label="Default barcode format">
@@ -1027,6 +1188,13 @@ class WalletAssistantCard extends HTMLElement {
       const newExpiresOn = expiresInput.value;
       const newNotes = notesInput.value.trim();
       const newFormat = formatSelect.value;
+
+      // Ask only when the logo changed, so editing other fields of a card whose
+      // external logo was already accepted does not ask again.
+      if (newLogoSlug !== String(card.logo_slug || "").trim() && !confirmLogoChoice(newLogoSlug)) {
+        logoSlugInput.focus();
+        return;
+      }
 
       const updated = await this._hass.callApi("put", `${API_PATH}/${getItemId(card)}`, {
         user_id: card.user_id,
@@ -1141,6 +1309,16 @@ class WalletAssistantCard extends HTMLElement {
       this.toolbarContainer.querySelector(`#type-${type}`)
         ?.classList.toggle("active", this.activeType === type);
     });
+    const priceWatchToggle = this.toolbarContainer.querySelector("#toggle-price-watch");
+    if (priceWatchToggle) {
+      priceWatchToggle.classList.toggle("active", this.showPriceWatch);
+      priceWatchToggle.setAttribute("aria-pressed", String(this.showPriceWatch));
+      priceWatchToggle.title = this.showPriceWatch ? "Hide price-watch links" : "Show price-watch links";
+      priceWatchToggle.querySelector("ha-icon")
+        ?.setAttribute("icon", this.showPriceWatch ? "mdi:tag-search-outline" : "mdi:tag-off-outline");
+      const label = priceWatchToggle.querySelector(".price-watch-toggle-label");
+      if (label) label.textContent = this.showPriceWatch ? "Price watch: on" : "Price watch: off";
+    }
 
     const selectedLogoUrl = this.selectedCard ? getLogoUrl(this.selectedCard.logo_slug) : "";
     const selectedInitial = this.selectedCard ? getCardInitial(this.selectedCard.name) : "";
@@ -1154,7 +1332,7 @@ class WalletAssistantCard extends HTMLElement {
       : [];
     const showPromotions = showPlatformSearch
       && (this.promotionsLoading || this.promotionSearchQuery === priceWatchQuery || promotionMatches.length > 0);
-    const priceWatchServices = showPlatformSearch
+    const priceWatchServices = showPlatformSearch && this.showPriceWatch
       ? normalizePriceWatchServices(this.priceWatchServices)
       : [];
 
@@ -1263,7 +1441,7 @@ class WalletAssistantCard extends HTMLElement {
             <div class="code" id="code-preview"></div>
             <div class="button-group">
               <button id="toggle-code"><ha-icon icon="mdi:cached"></ha-icon> QR/Barcode</button>
-              ${this.selectedCard.user_id === this._hass.user.id ? `
+              ${canManageCard(this.selectedCard, this._hass) ? `
                 <button id="edit"><ha-icon icon="mdi:pencil"></ha-icon> Edit</button>
               ` : ""}
             </div>
@@ -1344,7 +1522,7 @@ class WalletAssistantCard extends HTMLElement {
                 <input id="add-code" placeholder="Code" value="${escapeHtml(this._inputState.code || "")}" />
                 <button type="button" id="scan-add-code" class="inline-icon-button" title="Scan barcode" aria-label="Scan barcode"><ha-icon icon="mdi:barcode-scan"></ha-icon></button>
               </div>
-              <input id="add-logo-slug" placeholder="Logo.dev slug (optional)" value="${escapeHtml(this._inputState.logo_slug || "")}" />
+              <input id="add-logo-slug" placeholder="${escapeHtml(getLogoInputPlaceholder())}" value="${escapeHtml(this._inputState.logo_slug || "")}" />
               <input id="add-expires-on" type="date" value="${escapeHtml(this._inputState.expires_on || "")}" />
               <textarea id="add-notes" rows="3" placeholder="Note (optional)">${escapeHtml(this._inputState.notes || "")}</textarea>
               <div class="btn-row">
@@ -1440,7 +1618,7 @@ class WalletAssistantCard extends HTMLElement {
           if (event.target === event.currentTarget) this.closeCard();
         });
 
-      if (this.selectedCard.user_id === this._hass.user.id) {
+      if (canManageCard(this.selectedCard, this._hass)) {
         this.dynamicContainer.querySelector("#edit")
           ?.addEventListener("click", () => this.updateCard(this.selectedCard));
       }

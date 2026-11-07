@@ -183,6 +183,21 @@ button ha-icon {
 	background: #444;
 }
 
+.toolbar .filter-panel-action.price-watch-toggle {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+}
+
+.toolbar .filter-panel-action.price-watch-toggle.active {
+	background: #2f5f8f;
+}
+
+.toolbar .filter-panel-action.price-watch-toggle.active:hover {
+	background: #284f77;
+}
+
 .cardlist {
 	display: flex;
 	flex-direction: column;
