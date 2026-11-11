@@ -16,11 +16,24 @@ FRONTEND_PATH = "/wallet_assistant_static/wallet-assistant-card.js"
 
 STORAGE_FILE = "wallet_assistant_items.json"
 
+# Logo.dev publishable key (also used by the dashboard card as a fallback).
+LOGO_DEV_PUBLISHABLE_KEY = "pk_Svpm4b4MRmC5bvOmTw9jdg"
+LOGO_CACHE_DIR = "wallet_assistant_logos"
+LOGO_CACHE_MAX_AGE_SECONDS = 30 * 24 * 60 * 60
+LOGO_DEFAULT_SIZE = 64
+LOGO_MIN_SIZE = 16
+LOGO_MAX_SIZE = 256
+LOGO_MAX_BYTES = 512 * 1024
+LOGO_ALLOWED_SIZES = (32, 64, 128, 256)
+LOGO_CACHE_MAX_FILES = 2000
+
 SIGNAL_ITEMS_UPDATED = f"{DOMAIN}_items_updated"
 SIGNAL_PROMOTION_PLATFORMS_UPDATED = f"{DOMAIN}_promotion_platforms_updated"
 
 CONF_PRICE_WATCH_SERVICES = "price_watch_services"
 CONF_PROMOTION_PLATFORMS = "promotion_platforms"
+# Opt-in (default off): allow https:// image URLs from third-party sites as logos.
+CONF_ALLOW_EXTERNAL_LOGOS = "allow_external_logos"
 
 TYPE_LOYALTY = "loyalty"
 TYPE_VOUCHER = "voucher"

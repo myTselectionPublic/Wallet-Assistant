@@ -25,9 +25,17 @@
         "description": "Kies wat je wilt configureren.",
         "menu_options": {
           "price_watch_services": "Prijsvergelijkingssites",
-          "promotion_platforms": "Promotieplatformen"
+          "promotion_platforms": "Promotieplatformen",
+          "logos": "Logo's en afbeeldingen"
         },
         "title": "Opties voor Wallet Assistant"
+      },
+      "logos": {
+        "data": {
+          "allow_external_logos": "Logo's van externe websites toestaan (https://)"
+        },
+        "description": "Een logo kan altijd een Logo.dev-domein zijn (lokaal bewaard) of een bestand in je www-map (/local/...). Als je deze optie inschakelt, kan een logo ook het https://-adres van een afbeelding op een willekeurige website zijn.\n\nRisico: telkens wanneer iemand het dashboard opent, downloadt zijn browser die afbeelding rechtstreeks van de externe website. Die website kan het IP-adres, de browser en het tijdstip zien, en de afbeelding kan op elk moment veranderen of verdwijnen. Elke gebruiker die een kaart kan toevoegen of bewerken, kan zo'n adres kiezen. Schakel dit alleen in als je dit risico aanvaardt.",
+        "title": "Logo's en afbeeldingen"
       },
       "price_watch_service": {
         "data": {

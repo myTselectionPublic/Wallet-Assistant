@@ -1,6 +1,7 @@
 from .controllers import (
     WalletAssistantItemAPI,
     WalletAssistantListAPI,
+    WalletAssistantLogoAPI,
     WalletAssistantPromotionsAPI,
     WalletAssistantPromotionStatusAPI,
     WalletAssistantSettingsAPI,
@@ -8,6 +9,7 @@ from .controllers import (
 
 __all__ = [
     "WalletAssistantListAPI",
+    "WalletAssistantLogoAPI",
     "WalletAssistantPromotionsAPI",
     "WalletAssistantPromotionStatusAPI",
     "WalletAssistantSettingsAPI",
