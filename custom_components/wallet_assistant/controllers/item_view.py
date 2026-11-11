@@ -6,7 +6,7 @@ from ..const import API_BASE
 from ..services.storage import WalletStorage
 
 # Ownership never changes through an edit, also when an admin edits.
-PROTECTED_FIELDS = frozenset({"item_id", "user_id", "owner"})
+PROTECTED_FIELDS = frozenset({"item_id", "user_id", "owner", "spending", "remaining_balance"})
 
 
 def can_manage_item(user, item) -> bool:
@@ -56,7 +56,25 @@ class WalletAssistantItemAPI(HomeAssistantView):
             return self.json({"error": "not allowed to edit this item"}, status_code=403)
 
         changes = {key: value for key, value in data.items() if key not in PROTECTED_FIELDS}
-        updated = await self.storage.update_item(item.user_id, item_id, changes)
+        try:
+            updated = await self.storage.update_item(item.user_id, item_id, changes)
+        except ValueError as error:
+            return self.json({"error": str(error)}, status_code=400)
         if updated:
             return self.json(updated.to_dict())
         return self.json({"error": "item not found"}, status_code=404)
+
+    async def post(self, request, item_id):
+        data = await request.json()
+        if not isinstance(data, dict) or data.get("action") not in ("record_spending", "remove_spending"):
+            return self.json({"error": "invalid spending action"}, status_code=400)
+        item = await self.storage.get_item_by_id(item_id)
+        if not item:
+            return self.json({"error": "item not found"}, status_code=404)
+        if not can_manage_item(request["hass_user"], item):
+            return self.json({"error": "not allowed to edit this item"}, status_code=403)
+        try:
+            updated = await self.storage.record_spending(item, data)
+        except ValueError as error:
+            return self.json({"error": str(error)}, status_code=400)
+        return self.json(updated.to_dict())

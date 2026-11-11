@@ -46,6 +46,10 @@ So I started with the Card Wallet code and extended it.
   * Preserve the active search and open card when returning from another mobile app
   * Responsive design
 * Support for voucher cards, linked to Home Assistant users
+  * Distinct voucher badges and icons in list and grid views
+  * Optional balance tracking: enter a starting voucher value and currency when adding or editing a voucher, then record spending from its details
+  * Remaining balance is calculated from the starting value minus spending; dated entries with optional notes are saved with the voucher and mistaken entries can be removed
+  * For an already partially spent voucher, enter its current balance as the starting value. Owners and Home Assistant admins can record spending; other users can view the balance and history
   * Show vouchers inline with loyalty cards, or filter the view by type
   * Easy direct filtering while typing to quickly retrieve the needed item
   * See expiry dates

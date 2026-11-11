@@ -227,6 +227,82 @@ button ha-icon {
 	min-height: 3.5em;
 }
 
+.card.voucher {
+	border-left-color: #a96108;
+	box-shadow: inset 3px 0 #a96108;
+}
+
+.voucher-marker { display: none; }
+.grid-view .voucher .card-logo-wrap { position: relative; }
+.grid-view .voucher-marker {
+	display: inline-flex;
+	position: absolute;
+	top: 0;
+	left: calc(100% + 2px);
+	padding: 1px;
+	border-radius: 4px;
+	background: #fff0d6;
+	color: #814900;
+	--mdc-icon-size: 16px;
+}
+
+.type-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+	padding: 3px 6px;
+	border-radius: 5px;
+	font-size: 0.85em;
+	font-weight: 600;
+}
+.type-badge ha-icon { --mdc-icon-size: 16px; }
+.voucher-badge { background: #fff0d6; color: #814900; }
+.card-balance { color: #814900; font-size: 0.85em; font-weight: 600; }
+.voucher-fields, .voucher-balance { display: flex; flex-direction: column; gap: 8px; }
+.item-type-switch { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 4px; border: 1px solid #ccc; border-radius: 8px; background: #f2f2f2; }
+.item-type-option { position: relative; min-width: 0; cursor: pointer; }
+.popup-form .item-type-option input[type="radio"] { position: absolute; opacity: 0; width: 1px; height: 1px; padding: 0; margin: 0; }
+.item-type-option span { display: flex; align-items: center; justify-content: center; gap: 5px; min-height: 40px; padding: 0 4px; border-radius: 5px; color: #444; font-size: 0.9em; }
+.item-type-option ha-icon { --mdc-icon-size: 20px; }
+.item-type-option input:checked + span { background: #2f5f8f; color: #fff; font-weight: 600; }
+.item-type-option input[value="voucher"]:checked + span { background: #814900; }
+.item-type-option input:focus-visible + span { outline: 2px solid #2f5f8f; outline-offset: 2px; }
+.voucher-fields[hidden], .popup-form input[hidden] { display: none; }
+.voucher-fields p { margin: 0; }
+.voucher-fields small { color: #555; line-height: 1.4; }
+.voucher-value-row { display: grid; grid-template-columns: minmax(0, 1fr) 76px; gap: 8px; }
+.voucher-value-row label { display: flex; flex-direction: column; gap: 4px; min-width: 0; font-size: 0.9em; }
+.voucher-balance { margin-top: 8px; padding: 10px; background: #fff7e9; border-radius: 8px; color: #3e321f; gap: 6px; }
+.voucher-balance-row { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; }
+.balance-value { font-size: 1.3em; }
+.spending-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 120px); gap: 6px; }
+.spending-fields button { width: 100%; min-width: 0; height: 40px; padding: 0 4px; font-size: 0.8em; white-space: nowrap; }
+.voucher-balance .popup-form { gap: 6px; margin-top: 4px; }
+.voucher-balance .popup-form input { min-height: 40px; padding: 6px; font-size: 0.9em; }
+.spending-fields #spending-date { height: 40px; font-size: 0.85em; }
+.spending-details summary { padding: 6px 0; cursor: pointer; font-size: 0.9em; }
+.spending-details p { margin: 4px 0; font-size: 0.9em; }
+.voucher-popup { padding: 12px; }
+.voucher-popup .popup-header { gap: 8px; }
+.voucher-popup .card-title { font-size: 1.2em; }
+.voucher-popup .popup-meta { margin-top: 6px; flex-wrap: wrap; gap: 4px 8px; }
+.voucher-popup .popup-note { margin-top: 6px; }
+.voucher-popup .button-group { margin-top: 8px; gap: 6px; }
+.voucher-popup .code { margin-top: 8px; }
+.spending-history { list-style: none; margin: 0; padding: 0; }
+.spending-history li { display: flex; justify-content: space-between; align-items: center; gap: 8px; border-top: 1px solid #decdb2; padding: 8px 0; overflow-wrap: anywhere; }
+.spending-history li > div { min-width: 0; }
+.spending-history button { flex-shrink: 0; padding: 0 8px; }
+button:disabled { opacity: 0.6; cursor: wait; }
+.edit-dialog .dialog-content { max-height: calc(100dvh - 32px); overflow-y: auto; }
+.edit-dialog h3 { margin: 0 0 4px; }
+.edit-dialog .popup-form { gap: 8px; }
+.edit-dialog .popup-form input, .edit-dialog .popup-form select, .edit-dialog .popup-form textarea { padding: 8px; }
+.edit-dialog .popup-form textarea { min-height: 60px; }
+.edit-dialog .btn-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.edit-dialog .btn-row button { min-width: 0; padding: 0 4px; gap: 4px; font-size: 0.85em; white-space: nowrap; }
+.edit-dialog .btn-row ha-icon { --mdc-icon-size: 18px; }
+
 .grid-view .card {
 	flex-direction: column;
 	justify-content: center;

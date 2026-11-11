@@ -30,6 +30,8 @@ class WalletAssistantListAPI(HomeAssistantView):
     async def post(self, request):
         data = await request.json()
         user = request["hass_user"]
+        if not isinstance(data, dict):
+            return self.json({"error": "invalid payload"}, status_code=400)
         if not data.get("name"):
             return self.json({"error": "missing fields"}, status_code=400)
 
@@ -39,7 +41,7 @@ class WalletAssistantListAPI(HomeAssistantView):
         if item_type not in ITEM_TYPES:
             return self.json({"error": "invalid item_type"}, status_code=400)
 
-        item = WalletItem.from_dict(
+        item_data = (
             {
                 "item_id": str(uuid4()),
                 "name": data.get("name"),
@@ -53,8 +55,14 @@ class WalletAssistantListAPI(HomeAssistantView):
                 "expires_on": _clean_optional_string(data.get("expires_on")),
                 "notes": _clean_optional_string(data.get("notes")),
                 "promo_url": _clean_optional_string(data.get("promo_url")),
+                "initial_value": data.get("initial_value"),
+                "currency": data.get("currency", "EUR"),
             }
         )
+        try:
+            item = WalletItem.from_dict(item_data)
+        except ValueError as error:
+            return self.json({"error": str(error)}, status_code=400)
         saved = await self.storage.add_item(item)
         return self.json(saved.to_dict())
 

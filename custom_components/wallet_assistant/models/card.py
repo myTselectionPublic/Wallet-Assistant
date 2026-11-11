@@ -1,4 +1,7 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import date
+from decimal import Decimal, InvalidOperation
+import re
 from typing import Optional
 
 from ..const import (
@@ -8,6 +11,17 @@ from ..const import (
     ITEM_TYPES,
     TYPE_LOYALTY,
 )
+
+
+def money(value) -> Decimal:
+    """Validate an amount without introducing floating point rounding errors."""
+    try:
+        amount = Decimal(str(value))
+        if not amount.is_finite() or amount < 0 or amount != amount.quantize(Decimal("0.01")):
+            raise ValueError
+        return amount
+    except (InvalidOperation, ValueError):
+        raise ValueError("Amounts must be non-negative numbers with at most two decimal places") from None
 
 
 @dataclass
@@ -24,6 +38,15 @@ class WalletItem:
     expires_on: Optional[str] = None
     notes: Optional[str] = None
     promo_url: Optional[str] = None
+    initial_value: Optional[float] = None
+    currency: str = "EUR"
+    spending: list = field(default_factory=list)
+
+    @property
+    def remaining_balance(self):
+        if self.initial_value is None:
+            return None
+        return float(money(self.initial_value) - sum((money(entry["amount"]) for entry in self.spending), Decimal(0)))
 
     @classmethod
     def from_dict(cls, data: dict) -> "WalletItem":
@@ -34,6 +57,22 @@ class WalletItem:
         default_view = data.get("default_view") or DEFAULT_VIEW
         if default_view not in DEFAULT_VIEWS:
             default_view = DEFAULT_VIEW
+
+        initial_value = data.get("initial_value") if item_type == "voucher" else None
+        if initial_value is not None:
+            initial_value = float(money(initial_value))
+        currency = data.get("currency", "EUR")
+        if not isinstance(currency, str) or not re.fullmatch(r"[A-Z]{3}", currency):
+            raise ValueError("Currency must be a three-letter uppercase code")
+        spending = data.get("spending", []) if item_type == "voucher" else []
+        if not isinstance(spending, list):
+            raise ValueError("Invalid spending history")
+        for entry in spending:
+            if not isinstance(entry, dict) or not entry.get("id") or money(entry.get("amount")) <= 0:
+                raise ValueError("Invalid spending entry")
+            date.fromisoformat(entry.get("spent_on", ""))
+        if spending and (initial_value is None or sum((money(e["amount"]) for e in spending), Decimal(0)) > money(initial_value)):
+            raise ValueError("Voucher value cannot be less than recorded spending")
 
         return cls(
             item_id=data.get("item_id"),
@@ -48,6 +87,9 @@ class WalletItem:
             expires_on=data.get("expires_on") or data.get("expiry_date") or None,
             notes=data.get("notes") or None,
             promo_url=data.get("promo_url") or data.get("url") or None,
+            initial_value=initial_value,
+            currency=currency,
+            spending=spending,
         )
 
     def to_dict(self) -> dict:
@@ -64,4 +106,8 @@ class WalletItem:
             "expires_on": self.expires_on,
             "notes": self.notes,
             "promo_url": self.promo_url,
+            "initial_value": self.initial_value,
+            "currency": self.currency,
+            "spending": self.spending,
+            "remaining_balance": self.remaining_balance,
         }

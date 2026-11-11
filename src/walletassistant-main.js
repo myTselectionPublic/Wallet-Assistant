@@ -295,6 +295,89 @@ function getTypeLabel(item) {
   return TYPE_LABELS[getItemType(item)] || "Item";
 }
 
+function typeBadge(item) {
+  if (getItemType(item) !== "voucher") return `<span>${escapeHtml(getTypeLabel(item))}</span>`;
+  return `<span class="type-badge voucher-badge"><ha-icon icon="mdi:ticket-confirmation-outline"></ha-icon>${escapeHtml(getTypeLabel(item))}</span>`;
+}
+
+function formatMoney(amount, currency = "EUR") {
+  try {
+    return new Intl.NumberFormat(undefined, { style: "currency", currency }).format(amount);
+  } catch {
+    return `${Number(amount).toFixed(2)} ${currency}`;
+  }
+}
+
+function itemTypeSwitch(prefix, itemType = "loyalty") {
+  return `<div class="item-type-switch" role="radiogroup" aria-label="Item type">
+    <input id="${prefix}-type" type="hidden" value="${escapeHtml(itemType)}" />
+    ${[["loyalty", "Loyalty card", "mdi:card-account-details-outline"], ["voucher", "Voucher", "mdi:ticket-confirmation-outline"]].map(([value, label, icon]) => `
+      <label class="item-type-option">
+        <input type="radio" name="${prefix}-item-type" value="${value}" ${itemType === value ? "checked" : ""} />
+        <span><ha-icon icon="${icon}"></ha-icon>${label}</span>
+      </label>
+    `).join("")}
+  </div>`;
+}
+
+function bindItemTypeSwitch(root, prefix) {
+  const typeInput = root.querySelector(`#${prefix}-type`);
+  root.querySelectorAll(`input[name="${prefix}-item-type"]`).forEach(input => {
+    input.addEventListener("change", () => {
+      if (!input.checked) return;
+      typeInput.value = input.value;
+      typeInput.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+  });
+}
+
+function voucherFields(prefix, item) {
+  return `<div id="${prefix}-voucher-fields" class="voucher-fields" ${getItemType(item) === "voucher" ? "" : "hidden"}>
+    <div class="voucher-value-row">
+      <label for="${prefix}-initial-value">Starting value (optional)
+        <input id="${prefix}-initial-value" type="number" min="0" step="0.01" placeholder="Value" value="${escapeHtml(item.initial_value ?? "")}" ${getItemType(item) === "voucher" ? "" : "disabled"} />
+      </label>
+      <label for="${prefix}-currency">Currency
+        <input id="${prefix}-currency" maxlength="3" pattern="[A-Za-z]{3}" required value="${escapeHtml(item.currency || "EUR")}" ${getItemType(item) === "voucher" ? "" : "disabled"} />
+      </label>
+    </div>
+    <small>Leave blank to skip tracking. When starting tracking, use the voucher's current balance.</small>
+  </div>`;
+}
+
+function readVoucherFields(root, prefix, itemType) {
+  const input = root.querySelector(`#${prefix}-initial-value`);
+  const currency = root.querySelector(`#${prefix}-currency`);
+  if (itemType !== "voucher") return { initial_value: null, currency: "EUR" };
+  if (!input.reportValidity() || !currency.reportValidity()) return null;
+  return { initial_value: input.value === "" ? null : Number(input.value), currency: currency.value.toUpperCase() };
+}
+
+function voucherDetails(item, manageable) {
+  if (getItemType(item) !== "voucher") return "";
+  if (item.initial_value == null) return `<div class="voucher-balance">Balance tracking is off.${manageable ? " Use Edit to set a starting voucher value." : ""}</div>`;
+  const history = [...(item.spending || [])].reverse();
+  return `<section class="voucher-balance" aria-label="Voucher balance and spending">
+    <div class="voucher-balance-row"><span>Remaining balance</span>
+    <strong class="balance-value">${escapeHtml(formatMoney(item.remaining_balance, item.currency))}</strong></div>
+    <small>Starting value: ${escapeHtml(formatMoney(item.initial_value, item.currency))}</small>
+    ${manageable && item.remaining_balance > 0 ? `<form id="spending-form" class="popup-form">
+      <div class="spending-fields">
+        <input id="spending-amount" type="number" min="0.01" step="0.01" max="${escapeHtml(item.remaining_balance)}" placeholder="Amount (${escapeHtml(item.currency)})" aria-label="Amount spent (${escapeHtml(item.currency)})" required />
+        <input id="spending-date" type="date" aria-label="Spending date" required />
+        <input id="spending-note" placeholder="Note (optional)" aria-label="Spending note" />
+        <button type="submit">Record spending</button>
+      </div>
+    </form>` : ""}
+    <details class="spending-details"><summary>Spending history (${history.length})</summary>
+    ${history.length ? `<ul class="spending-history">${history.map(entry => `<li>
+      <div><strong>${escapeHtml(formatMoney(entry.amount, item.currency))}</strong> · ${escapeHtml(formatExpiry(entry.spent_on))}
+      ${entry.note ? `<div>${escapeHtml(entry.note)}</div>` : ""}</div>
+      ${manageable ? `<button type="button" data-remove-spending="${escapeHtml(entry.id)}" aria-label="Remove spending of ${escapeHtml(formatMoney(entry.amount, item.currency))}">Remove</button>` : ""}
+    </li>`).join("")}</ul>` : "<p>No spending recorded yet.</p>"}</details>
+  </section>`;
+}
+
 function compareItemsByName(a, b) {
   return String(a?.name || "").localeCompare(String(b?.name || ""), undefined, {
     numeric: true,
@@ -970,6 +1053,25 @@ class WalletAssistantCard extends HTMLElement {
     this.render();
   }
 
+  async saveSpending(data, button) {
+    if (this._spendingSaving) return;
+    this._spendingSaving = true;
+    if (button) button.disabled = true;
+    const cardId = getItemId(this.selectedCard);
+    try {
+      const updated = normalizeItem(await this._hass.callApi("post", `${API_PATH}/${cardId}`, data));
+      this.ownCards = this.ownCards.map(card => getItemId(card) === cardId ? updated : card);
+      this.otherCards = this.otherCards.map(card => getItemId(card) === cardId ? updated : card);
+      if (getItemId(this.selectedCard) === cardId) this.selectedCard = updated;
+      this.render();
+    } catch (error) {
+      alert(error?.body?.error || error?.message || "Unable to save voucher spending. Please try again.");
+    } finally {
+      this._spendingSaving = false;
+      if (button) button.disabled = false;
+    }
+  }
+
   async addCard(e) {
     e.preventDefault();
     const nameEl = this.shadowRoot.getElementById("add-name") || this.shadowRoot.getElementById("name");
@@ -984,23 +1086,36 @@ class WalletAssistantCard extends HTMLElement {
     const itemType = typeEl?.value || "loyalty";
     const expiresOn = expiresEl?.value || "";
     const notes = notesEl?.value?.trim() || "";
+    const balanceFields = readVoucherFields(this.shadowRoot, "add", itemType);
+    if (!balanceFields) return;
     if (!name || !code) return alert("Missing fields");
     if (!confirmLogoChoice(logoSlug)) {
       logoSlugEl?.focus();
       return;
     }
-    await this._hass.callApi("post", API_PATH, {
+    const saveButton = this.shadowRoot.querySelector("#add-card-form button[type=submit]");
+    if (saveButton.disabled) return;
+    saveButton.disabled = true;
+    try {
+      await this._hass.callApi("post", API_PATH, {
       name,
       code,
       logo_slug: logoSlug,
       owner: this._hass.user.name,
       user_id: this._hass.user.id,
       item_type: itemType,
+      ...balanceFields,
       expires_on: itemType === "voucher" ? expiresOn : "",
       notes,
       format: "CODE128", // default for new cards
       default_view: DEFAULT_VIEW
     });
+    } catch (error) {
+      alert(error?.body?.error || error?.message || "Unable to save this item.");
+      return;
+    } finally {
+      saveButton.disabled = false;
+    }
 
     this._inputState = { name: "", code: "", logo_slug: "", item_type: "loyalty", expires_on: "", notes: "" };
     if (nameEl) nameEl.value = "";
@@ -1100,11 +1215,7 @@ class WalletAssistantCard extends HTMLElement {
       <div class="dialog-content">
         <h3>Edit item</h3>
         <form class="popup-form">
-          <select id="edit-type" aria-label="Type">
-            <option value="loyalty" ${getItemType(card) === "loyalty" ? "selected" : ""}>Loyalty card</option>
-            <option value="voucher" ${getItemType(card) === "voucher" ? "selected" : ""}>Voucher</option>
-            <option value="promotion" ${getItemType(card) === "promotion" ? "selected" : ""}>Promotion</option>
-          </select>
+          ${itemTypeSwitch("edit", getItemType(card))}
           <input id="edit-name" type="text" placeholder="Name" value="${escapeHtml(card.name)}" />
           <div class="code-input-row">
             <input id="edit-code" type="text" placeholder="Code" value="${escapeHtml(card.code)}" />
@@ -1112,6 +1223,7 @@ class WalletAssistantCard extends HTMLElement {
           </div>
           <input id="edit-logo-slug" type="text" value="${escapeHtml(card.logo_slug || "")}" placeholder="${escapeHtml(getLogoInputPlaceholder())}" />
           <input id="edit-expires-on" type="date" value="${escapeHtml(card.expires_on || "")}" title="Expiry date" aria-label="Expiry date" />
+          ${voucherFields("edit", card)}
           <textarea id="edit-notes" rows="3" placeholder="Note (optional)">${escapeHtml(card.notes || "")}</textarea>
           <select id="edit-format" title="Default barcode format" aria-label="Default barcode format">
             ${supportedFormats
@@ -1145,7 +1257,7 @@ class WalletAssistantCard extends HTMLElement {
       z-index:1000;
     `;
     dialog.querySelector(".dialog-content").style.cssText = `
-      background:#fff; padding:1em; border-radius:8px; width:min(320px, calc(100vw - 32px)); max-width:calc(100vw - 32px); box-sizing:border-box;
+      background:#fff; padding:12px; border-radius:8px; width:min(360px, calc(100vw - 32px)); max-width:calc(100vw - 32px); box-sizing:border-box;
       display:flex; flex-direction:column; gap:0.5em;
     `;
 
@@ -1155,6 +1267,14 @@ class WalletAssistantCard extends HTMLElement {
     const codeInput = dialog.querySelector("#edit-code");
     const logoSlugInput = dialog.querySelector("#edit-logo-slug");
     const typeSelect = dialog.querySelector("#edit-type");
+    const syncVoucherFields = () => {
+      dialog.querySelector("#edit-voucher-fields").hidden = typeSelect.value !== "voucher";
+      dialog.querySelectorAll("#edit-voucher-fields input").forEach(input => { input.disabled = typeSelect.value !== "voucher"; });
+      dialog.querySelector("#edit-expires-on").hidden = typeSelect.value !== "voucher";
+    };
+    typeSelect.addEventListener("change", syncVoucherFields);
+    bindItemTypeSwitch(dialog, "edit");
+    syncVoucherFields();
     const expiresInput = dialog.querySelector("#edit-expires-on");
     const notesInput = dialog.querySelector("#edit-notes");
     const formatSelect = dialog.querySelector("#edit-format");
@@ -1188,6 +1308,8 @@ class WalletAssistantCard extends HTMLElement {
       const newExpiresOn = expiresInput.value;
       const newNotes = notesInput.value.trim();
       const newFormat = formatSelect.value;
+      const balanceFields = readVoucherFields(dialog, "edit", newType);
+      if (!balanceFields) return;
 
       // Ask only when the logo changed, so editing other fields of a card whose
       // external logo was already accepted does not ask again.
@@ -1196,16 +1318,27 @@ class WalletAssistantCard extends HTMLElement {
         return;
       }
 
-      const updated = await this._hass.callApi("put", `${API_PATH}/${getItemId(card)}`, {
+      const saveButton = dialog.querySelector("#save-btn");
+      saveButton.disabled = true;
+      let updated;
+      try {
+        updated = await this._hass.callApi("put", `${API_PATH}/${getItemId(card)}`, {
         user_id: card.user_id,
         name: newName,
         code: newCode,
         logo_slug: newLogoSlug,
         item_type: newType,
+        ...balanceFields,
         expires_on: newType === "voucher" ? newExpiresOn : "",
         notes: newNotes,
         format: newFormat
       });
+      } catch (error) {
+        alert(error?.body?.error || error?.message || "Unable to save this item.");
+        return;
+      } finally {
+        saveButton.disabled = false;
+      }
       const updatedCard = {
         name: newName,
         code: newCode,
@@ -1341,7 +1474,6 @@ class WalletAssistantCard extends HTMLElement {
         ${sortedCards.length ? sortedCards.map(card => {
           const logoUrl = getLogoUrl(card.logo_slug, 64);
           const initial = getCardInitial(card.name);
-          const typeLabel = getTypeLabel(card);
           const expiry = card.expires_on ? formatExpiry(card.expires_on) : "";
           return `
           <div class="card ${getItemType(card)}" data-card-id="${escapeHtml(getItemId(card))}" title="${escapeHtml(card.name)}">
@@ -1349,11 +1481,13 @@ class WalletAssistantCard extends HTMLElement {
               ${logoUrl
                 ? `<img class="card-logo" data-logo-url="${escapeHtml(logoUrl)}" alt="" data-initial="${escapeHtml(initial)}" loading="lazy" />`
                 : `<div class="card-logo-placeholder">${escapeHtml(initial)}</div>`}
+              ${getItemType(card) === "voucher" ? `<span class="voucher-marker" title="Voucher${card.remaining_balance != null ? ` · ${escapeHtml(formatMoney(card.remaining_balance, card.currency))} left` : ""}" aria-label="Voucher"><ha-icon icon="mdi:ticket-confirmation-outline"></ha-icon></span>` : ""}
             </div>
             <div class="card-details">
               <strong>${escapeHtml(card.name)}</strong>
               <small class="item-meta">
-                <span>${escapeHtml(typeLabel)}</span>
+                ${typeBadge(card)}
+                ${getItemType(card) === "voucher" && card.remaining_balance != null ? `<span class="card-balance">${escapeHtml(formatMoney(card.remaining_balance, card.currency))} left</span>` : ""}
                 ${expiry ? `<span class="expiry"><ha-icon icon="mdi:calendar-clock"></ha-icon>${escapeHtml(expiry)}</span>` : ""}
                 ${card.user_id !== this._hass.user.id ? `<span><ha-icon icon="mdi:account"></ha-icon>${escapeHtml(card.owner)}</span>` : ""}
               </small>
@@ -1424,7 +1558,7 @@ class WalletAssistantCard extends HTMLElement {
       ` : ""}
       ${this.selectedCard ? `
         <div class="popup-overlay" id="details-overlay">
-          <div class="popup">
+          <div class="popup ${getItemType(this.selectedCard) === "voucher" ? "voucher-popup" : ""}">
             <div class="popup-header">
               <div class="popup-logo-wrap">
                 ${selectedLogoUrl
@@ -1434,10 +1568,11 @@ class WalletAssistantCard extends HTMLElement {
               <h3 class="card-title">${escapeHtml(this.selectedCard.name)}</h3>
             </div>
             <div class="popup-meta">
-              <span>${escapeHtml(getTypeLabel(this.selectedCard))}</span>
+              ${typeBadge(this.selectedCard)}
               ${selectedExpiry ? `<span><ha-icon icon="mdi:calendar-clock"></ha-icon>${escapeHtml(selectedExpiry)}</span>` : ""}
             </div>
             ${selectedNotes ? `<div class="popup-note">${escapeHtml(selectedNotes)}</div>` : ""}
+            ${voucherDetails(this.selectedCard, canManageCard(this.selectedCard, this._hass))}
             <div class="code" id="code-preview"></div>
             <div class="button-group">
               <button id="toggle-code"><ha-icon icon="mdi:cached"></ha-icon> QR/Barcode</button>
@@ -1512,18 +1647,15 @@ class WalletAssistantCard extends HTMLElement {
           <div class="dialog-content">
             <h3>Add new item</h3>
             <form id="add-card-form" class="popup-form">
-              <select id="add-type">
-                <option value="loyalty" ${(this._inputState.item_type || "loyalty") === "loyalty" ? "selected" : ""}>Loyalty card</option>
-                <option value="voucher" ${this._inputState.item_type === "voucher" ? "selected" : ""}>Voucher</option>
-                <option value="promotion" ${this._inputState.item_type === "promotion" ? "selected" : ""}>Promotion</option>
-              </select>
+              ${itemTypeSwitch("add", this._inputState.item_type || "loyalty")}
               <input id="add-name" placeholder="Name" value="${escapeHtml(this._inputState.name || "")}" />
               <div class="code-input-row">
                 <input id="add-code" placeholder="Code" value="${escapeHtml(this._inputState.code || "")}" />
                 <button type="button" id="scan-add-code" class="inline-icon-button" title="Scan barcode" aria-label="Scan barcode"><ha-icon icon="mdi:barcode-scan"></ha-icon></button>
               </div>
               <input id="add-logo-slug" placeholder="${escapeHtml(getLogoInputPlaceholder())}" value="${escapeHtml(this._inputState.logo_slug || "")}" />
-              <input id="add-expires-on" type="date" value="${escapeHtml(this._inputState.expires_on || "")}" />
+              <input id="add-expires-on" type="date" aria-label="Expiry date" title="Expiry date" value="${escapeHtml(this._inputState.expires_on || "")}" ${this._inputState.item_type === "voucher" ? "" : "hidden"} />
+              ${voucherFields("add", this._inputState)}
               <textarea id="add-notes" rows="3" placeholder="Note (optional)">${escapeHtml(this._inputState.notes || "")}</textarea>
               <div class="btn-row">
                 <button type="submit" id="save-btn"><ha-icon icon="mdi:content-save"></ha-icon> Save</button>
@@ -1572,7 +1704,19 @@ class WalletAssistantCard extends HTMLElement {
       this.dynamicContainer.querySelector("#scan-add-code")
         ?.addEventListener("click", () => this.scanBarcodeIntoInput(addCode));
       addLogoSlug?.addEventListener("input", (event) => { this._inputState.logo_slug = event.target.value; });
-      addType?.addEventListener("change", (event) => { this._inputState.item_type = event.target.value; });
+      addType?.addEventListener("change", (event) => {
+        this._inputState.item_type = event.target.value;
+        this.shadowRoot.querySelector("#add-voucher-fields").hidden = event.target.value !== "voucher";
+        this.shadowRoot.querySelectorAll("#add-voucher-fields input").forEach(input => { input.disabled = event.target.value !== "voucher"; });
+        addExpiresOn.hidden = event.target.value !== "voucher";
+      });
+      bindItemTypeSwitch(addForm, "add");
+      this.shadowRoot.querySelector("#add-initial-value")?.addEventListener("input", event => {
+        this._inputState.initial_value = event.target.value;
+      });
+      this.shadowRoot.querySelector("#add-currency")?.addEventListener("input", event => {
+        this._inputState.currency = event.target.value;
+      });
       addExpiresOn?.addEventListener("input", (event) => { this._inputState.expires_on = event.target.value; });
       addNotes?.addEventListener("input", (event) => { this._inputState.notes = event.target.value; });
     }
@@ -1619,6 +1763,26 @@ class WalletAssistantCard extends HTMLElement {
         });
 
       if (canManageCard(this.selectedCard, this._hass)) {
+        const spendingForm = this.dynamicContainer.querySelector("#spending-form");
+        const spendingDate = this.dynamicContainer.querySelector("#spending-date");
+        if (spendingDate) {
+          const today = new Date();
+          spendingDate.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+        }
+        spendingForm?.addEventListener("submit", event => {
+          event.preventDefault();
+          this.saveSpending({
+            action: "record_spending",
+            amount: spendingForm.querySelector("#spending-amount").value,
+            spent_on: spendingDate.value,
+            note: spendingForm.querySelector("#spending-note").value
+          }, spendingForm.querySelector("button"));
+        });
+        this.dynamicContainer.querySelectorAll("[data-remove-spending]").forEach(button => {
+          button.addEventListener("click", () => this.saveSpending({
+            action: "remove_spending", spending_id: button.dataset.removeSpending
+          }, button));
+        });
         this.dynamicContainer.querySelector("#edit")
           ?.addEventListener("click", () => this.updateCard(this.selectedCard));
       }
