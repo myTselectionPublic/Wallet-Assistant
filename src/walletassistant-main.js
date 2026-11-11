@@ -300,11 +300,11 @@ function typeBadge(item) {
   return `<span class="type-badge voucher-badge"><ha-icon icon="mdi:ticket-confirmation-outline"></ha-icon>${escapeHtml(getTypeLabel(item))}</span>`;
 }
 
-function formatMoney(amount, currency = "EUR") {
+function formatMoney(amount, currency = "EUR", fractionDigits = 2) {
   try {
-    return new Intl.NumberFormat(undefined, { style: "currency", currency }).format(amount);
+    return new Intl.NumberFormat(undefined, { style: "currency", currency, minimumFractionDigits: fractionDigits, maximumFractionDigits: fractionDigits }).format(amount);
   } catch {
-    return `${Number(amount).toFixed(2)} ${currency}`;
+    return `${Number(amount).toFixed(fractionDigits)} ${currency}`;
   }
 }
 
@@ -1480,7 +1480,7 @@ class WalletAssistantCard extends HTMLElement {
           <div class="card ${getItemType(card)}" data-card-id="${escapeHtml(getItemId(card))}" title="${escapeHtml(card.name)}">
             ${getItemType(card) === "voucher" ? `<span class="voucher-grid-marker" title="Voucher${voucherBalance ? ` · ${escapeHtml(voucherBalance)} remaining` : ""}" aria-label="Voucher${voucherBalance ? `, remaining balance: ${escapeHtml(voucherBalance)}` : ""}">
               <ha-icon class="voucher-marker" icon="mdi:ticket-confirmation-outline"></ha-icon>
-              ${voucherBalance ? `<span class="grid-card-balance">${escapeHtml(voucherBalance)}</span>` : ""}
+              ${voucherBalance ? `<span class="grid-card-balance">${escapeHtml(formatMoney(card.remaining_balance, card.currency, 0))}</span>` : ""}
             </span>` : ""}
             <div class="card-logo-wrap">
               ${logoUrl
