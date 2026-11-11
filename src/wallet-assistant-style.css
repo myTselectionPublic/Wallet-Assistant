@@ -232,18 +232,39 @@ button ha-icon {
 	box-shadow: inset 3px 0 #a96108;
 }
 
-.voucher-marker { display: none; }
-.grid-view .voucher .card-logo-wrap { position: relative; }
-.grid-view .voucher-marker {
+.voucher-grid-marker { display: none; }
+.grid-view .card.voucher { position: relative; }
+.grid-view .voucher-grid-marker {
 	display: inline-flex;
+	align-items: center;
+	gap: 3px;
 	position: absolute;
-	top: 0;
-	left: calc(100% + 2px);
-	padding: 1px;
+	top: 50%;
+	right: 10px;
+	transform: translate(50%, -50%) rotate(90deg);
+	width: max-content;
+	max-width: 60px;
+	box-sizing: border-box;
+	padding: 1px 3px;
+	border: 1px solid #e4c490;
 	border-radius: 4px;
 	background: #fff0d6;
 	color: #814900;
-	--mdc-icon-size: 16px;
+	font-size: 0.65em;
+	font-weight: 600;
+	line-height: 1.2;
+	white-space: nowrap;
+}
+.voucher-grid-marker .grid-card-balance {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.voucher-grid-marker .voucher-marker {
+	flex: 0 0 12px;
+	width: 12px;
+	height: 12px;
+	--mdc-icon-size: 12px;
 }
 
 .type-badge {

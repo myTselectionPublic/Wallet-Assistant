@@ -1475,13 +1475,17 @@ class WalletAssistantCard extends HTMLElement {
           const logoUrl = getLogoUrl(card.logo_slug, 64);
           const initial = getCardInitial(card.name);
           const expiry = card.expires_on ? formatExpiry(card.expires_on) : "";
+          const voucherBalance = card.remaining_balance != null ? formatMoney(card.remaining_balance, card.currency) : "";
           return `
           <div class="card ${getItemType(card)}" data-card-id="${escapeHtml(getItemId(card))}" title="${escapeHtml(card.name)}">
+            ${getItemType(card) === "voucher" ? `<span class="voucher-grid-marker" title="Voucher${voucherBalance ? ` · ${escapeHtml(voucherBalance)} remaining` : ""}" aria-label="Voucher${voucherBalance ? `, remaining balance: ${escapeHtml(voucherBalance)}` : ""}">
+              <ha-icon class="voucher-marker" icon="mdi:ticket-confirmation-outline"></ha-icon>
+              ${voucherBalance ? `<span class="grid-card-balance">${escapeHtml(voucherBalance)}</span>` : ""}
+            </span>` : ""}
             <div class="card-logo-wrap">
               ${logoUrl
                 ? `<img class="card-logo" data-logo-url="${escapeHtml(logoUrl)}" alt="" data-initial="${escapeHtml(initial)}" loading="lazy" />`
                 : `<div class="card-logo-placeholder">${escapeHtml(initial)}</div>`}
-              ${getItemType(card) === "voucher" ? `<span class="voucher-marker" title="Voucher${card.remaining_balance != null ? ` · ${escapeHtml(formatMoney(card.remaining_balance, card.currency))} left` : ""}" aria-label="Voucher"><ha-icon icon="mdi:ticket-confirmation-outline"></ha-icon></span>` : ""}
             </div>
             <div class="card-details">
               <strong>${escapeHtml(card.name)}</strong>
