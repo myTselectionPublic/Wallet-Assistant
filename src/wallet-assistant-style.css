@@ -1065,6 +1065,10 @@ ha-icon {
   font-size: 0.85em;
 }
 
+.image-upload-controls [role="status"]:empty {
+  display: none;
+}
+
 .uploaded-image-preview {
   max-width: 100%;
   max-height: 140px;

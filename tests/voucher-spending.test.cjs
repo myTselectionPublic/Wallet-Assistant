@@ -10,12 +10,12 @@ const context = vm.createContext({
   alert(message) { throw new Error(message); },
 });
 
-test('image controls provide separate camera and device pickers', () => {
+test('image controls provide one accessible icon button beside the logo input', () => {
   const markup = context.imageUploadControls('add');
-  assert.match(markup, /capture="environment"/);
+  assert.doesNotMatch(markup, /capture=|camera-file|take-photo|Take photo/);
+  assert.match(markup, /class="code-input-row">\s*<input id="add-logo-slug"/);
   assert.match(markup, /id="add-image-file" type="file" accept="image\/jpeg,image\/png,image\/gif,image\/webp" hidden/);
-  assert.match(markup, /Take photo/);
-  assert.match(markup, /Choose photo/);
+  assert.match(markup, /aria-label="Choose photo"><ha-icon icon="mdi:image"><\/ha-icon><\/button>/);
 });
 
 function imageUploadFixture() {
@@ -48,8 +48,8 @@ test('device uploads disable saving and put the returned local path into the car
     assert.equal(options.body, file);
     return new Promise(resolve => { finish = resolve; });
   } };
-  root.querySelector('#add-take-photo').listeners.click();
-  assert.equal(root.querySelector('#add-camera-file').clicked, true);
+  root.querySelector('#add-choose-photo').listeners.click();
+  assert.equal(root.querySelector('#add-image-file').clicked, true);
   const input = root.querySelector('#add-image-file');
   input.files = [file];
   const uploading = input.listeners.change();

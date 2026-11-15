@@ -108,13 +108,12 @@ function getCardInitial(name) {
   return String(name || "?").trim().charAt(0).toUpperCase() || "?";
 }
 
-function imageUploadControls(prefix) {
+function imageUploadControls(prefix, value = "") {
   return `<div class="image-upload-controls">
-    <div class="button-group">
-      <button type="button" id="${prefix}-take-photo"><ha-icon icon="mdi:camera"></ha-icon> Take photo</button>
-      <button type="button" id="${prefix}-choose-photo"><ha-icon icon="mdi:image"></ha-icon> Choose photo</button>
+    <div class="code-input-row">
+      <input id="${prefix}-logo-slug" type="text" value="${escapeHtml(value)}" placeholder="${escapeHtml(getLogoInputPlaceholder())}" />
+      <button type="button" id="${prefix}-choose-photo" class="inline-icon-button" title="Choose photo" aria-label="Choose photo"><ha-icon icon="mdi:image"></ha-icon></button>
     </div>
-    <input id="${prefix}-camera-file" type="file" accept="image/*" capture="environment" hidden />
     <input id="${prefix}-image-file" type="file" accept="image/jpeg,image/png,image/gif,image/webp" hidden />
     <span id="${prefix}-image-status" role="status" aria-live="polite"></span>
     <img id="${prefix}-image-preview" class="uploaded-image-preview" alt="Selected card image" hidden />
@@ -1247,7 +1246,7 @@ class WalletAssistantCard extends HTMLElement {
     const sync = (target, message = "") => {
       if (!target) return;
       const busy = !!this._imageUploading;
-      target.querySelectorAll(`#${prefix}-take-photo, #${prefix}-choose-photo, #save-btn, #${prefix}-logo-slug`)
+      target.querySelectorAll(`#${prefix}-choose-photo, #save-btn, #${prefix}-logo-slug`)
         .forEach(element => { element.disabled = busy; });
       target.querySelector(`#${prefix}-image-status`).textContent = busy ? "Uploading photo…" : message;
       const preview = target.querySelector(`#${prefix}-image-preview`);
@@ -1258,10 +1257,9 @@ class WalletAssistantCard extends HTMLElement {
     };
     sync(root);
     root.querySelector(`#${prefix}-logo-slug`).addEventListener("input", () => sync(root));
-    for (const [button, input] of [["take-photo", "camera-file"], ["choose-photo", "image-file"]]) {
-      const fileInput = root.querySelector(`#${prefix}-${input}`);
-      root.querySelector(`#${prefix}-${button}`).addEventListener("click", () => fileInput.click());
-      fileInput.addEventListener("change", async () => {
+    const fileInput = root.querySelector(`#${prefix}-image-file`);
+    root.querySelector(`#${prefix}-choose-photo`).addEventListener("click", () => fileInput.click());
+    fileInput.addEventListener("change", async () => {
         const file = fileInput.files?.[0];
         if (!file || this._imageUploading) return;
         fileInput.value = "";
@@ -1290,8 +1288,7 @@ class WalletAssistantCard extends HTMLElement {
           this._imageUploading = false;
           sync(currentRoot(), message);
         }
-      });
-    }
+    });
   }
 
   async updateCard(card) {
@@ -1317,8 +1314,7 @@ class WalletAssistantCard extends HTMLElement {
             <input id="edit-code" type="text" placeholder="Code" value="${escapeHtml(card.code)}" />
             <button id="scan-edit-code" class="inline-icon-button" type="button" title="Scan barcode" aria-label="Scan barcode"><ha-icon icon="mdi:barcode-scan"></ha-icon></button>
           </div>
-          <input id="edit-logo-slug" type="text" value="${escapeHtml(card.logo_slug || "")}" placeholder="${escapeHtml(getLogoInputPlaceholder())}" />
-          ${imageUploadControls("edit")}
+          ${imageUploadControls("edit", card.logo_slug || "")}
           <input id="edit-expires-on" type="date" value="${escapeHtml(card.expires_on || "")}" title="Expiry date" aria-label="Expiry date" />
           ${voucherFields("edit", card)}
           <textarea id="edit-notes" rows="3" placeholder="Note (optional)">${escapeHtml(card.notes || "")}</textarea>
@@ -1757,8 +1753,7 @@ class WalletAssistantCard extends HTMLElement {
                 <input id="add-code" placeholder="Code (optional)" value="${escapeHtml(this._inputState.code || "")}" />
                 <button type="button" id="scan-add-code" class="inline-icon-button" title="Scan barcode" aria-label="Scan barcode"><ha-icon icon="mdi:barcode-scan"></ha-icon></button>
               </div>
-              <input id="add-logo-slug" placeholder="${escapeHtml(getLogoInputPlaceholder())}" value="${escapeHtml(this._inputState.logo_slug || "")}" />
-              ${imageUploadControls("add")}
+              ${imageUploadControls("add", this._inputState.logo_slug || "")}
               <input id="add-expires-on" type="date" aria-label="Expiry date" title="Expiry date" value="${escapeHtml(this._inputState.expires_on || "")}" ${this._inputState.item_type === "voucher" ? "" : "hidden"} />
               ${voucherFields("add", this._inputState)}
               <textarea id="add-notes" rows="3" placeholder="Note (optional)">${escapeHtml(this._inputState.notes || "")}</textarea>
