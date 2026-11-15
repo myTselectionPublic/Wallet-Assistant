@@ -8,6 +8,8 @@ const DIGIT_ONLY_FORMATS = new Set([
   "MSI", "MSI10", "MSI11", "MSI1010", "MSI1110", "pharmacode"
 ]);
 const LOGO_DEV_PUBLISHABLE_KEY = "pk_Svpm4b4MRmC5bvOmTw9jdg";
+let logoDevApiKey = LOGO_DEV_PUBLISHABLE_KEY;
+let logoSearchEnabled = false;
 const API_PATH = "wallet_assistant";
 const TYPE_LABELS = {
   loyalty: "Card",
@@ -114,6 +116,8 @@ function imageUploadControls(prefix, value = "") {
       <input id="${prefix}-logo-slug" type="text" value="${escapeHtml(value)}" placeholder="${escapeHtml(getLogoInputPlaceholder())}" />
       <button type="button" id="${prefix}-choose-photo" class="inline-icon-button" title="Choose photo" aria-label="Choose photo"><ha-icon icon="mdi:image"></ha-icon></button>
     </div>
+    ${logoSearchEnabled ? `<span id="${prefix}-logo-search-status" role="status" aria-live="polite">Type at least 3 characters to find a brand.</span>
+    <div id="${prefix}-logo-results" class="logo-search-results" role="group" aria-label="Matching brands" hidden></div>` : ""}
     <input id="${prefix}-image-file" type="file" accept="image/jpeg,image/png,image/gif,image/webp" hidden />
     <span id="${prefix}-image-status" role="status" aria-live="polite"></span>
     <img id="${prefix}-image-preview" class="uploaded-image-preview" alt="Selected card image" hidden />
@@ -166,7 +170,7 @@ function isDirectImagePath(value) {
 }
 
 function getLogoDevUrl(slug, size = LOGO_DEV_IMAGE_SIZE) {
-  return `https://img.logo.dev/${encodeURIComponent(slug)}?token=${LOGO_DEV_PUBLISHABLE_KEY}&size=${size}&format=webp&retina=true`;
+  return `https://img.logo.dev/${encodeURIComponent(slug)}?token=${encodeURIComponent(logoDevApiKey)}&size=${size}&format=webp&retina=true`;
 }
 
 // Returns a logo reference for data-logo-url: either a direct image path/URL
@@ -952,10 +956,17 @@ class WalletAssistantCard extends HTMLElement {
         const settings = await this._hass.callApi("get", `${API_PATH}/settings`);
         this.priceWatchServices = normalizePriceWatchServices(settings?.price_watch_services);
         allowExternalLogos = settings?.allow_external_logos === true;
+        logoSearchEnabled = settings?.logo_search_enabled === true;
+        const apiKey = String(settings?.logo_dev_api_key || "").trim() || LOGO_DEV_PUBLISHABLE_KEY;
+        if (apiKey !== logoDevApiKey) {
+          logoDevApiKey = apiKey;
+          logoImageCache.clear();
+        }
       } catch (error) {
         console.warn("Unable to load Wallet Assistant settings; using default price-watch services.", error);
         this.priceWatchServices = normalizePriceWatchServices();
         allowExternalLogos = false;
+        logoSearchEnabled = false;
       } finally {
         this._settingsLoaded = true;
         this.render();
@@ -1238,6 +1249,98 @@ class WalletAssistantCard extends HTMLElement {
     dialog.showModal();
   }
 
+  bindLogoSearch(root, prefix) {
+    const results = root?.querySelector(`#${prefix}-logo-results`);
+    if (!results) return;
+    const input = root.querySelector(`#${prefix}-logo-slug`);
+    const status = root.querySelector(`#${prefix}-logo-search-status`);
+    input.autocomplete = "off";
+    input.setAttribute("aria-controls", `${prefix}-logo-results`);
+    input.setAttribute("aria-describedby", `${prefix}-logo-search-status`);
+    let timer;
+    let generation = 0;
+    const hide = () => {
+      clearTimeout(timer);
+      generation += 1;
+      results.hidden = true;
+      results.innerHTML = "";
+      status.textContent = "";
+    };
+    input.addEventListener("input", () => {
+      hide();
+      const query = input.value.trim();
+      if (query.length < 3 || query.length > 100 || /[/:\\]/.test(query) || this._imageUploading) return;
+      const requestGeneration = generation;
+      timer = setTimeout(async () => {
+        if (!input.isConnected) return;
+        status.textContent = "Finding brands…";
+        try {
+          const response = await this._hass.callApi("get", `${API_PATH}/logo_search?q=${encodeURIComponent(query)}`);
+          if (!input.isConnected || generation !== requestGeneration || input.value.trim() !== query) return;
+          if (response?.status !== "ok") {
+            const messages = {
+              disabled: "Logo search is not configured. Enter a domain manually.",
+              invalid_key: "Logo search key needs updating. Enter a domain manually.",
+              credits_exhausted: "Logo search credits are used up. Enter a domain manually.",
+              rate_limited: "Logo search is busy. Try again shortly or enter a domain manually.",
+            };
+            status.textContent = messages[response?.status] || "Logo search is unavailable. Enter a domain manually.";
+            return;
+          }
+          const matches = (Array.isArray(response.results) ? response.results : [])
+            .filter(match => /^[a-z0-9][a-z0-9._-]*$/i.test(match.domain)).slice(0, 5);
+          status.textContent = matches.length ? "Choose a brand or enter a domain manually." : "No matching brands. Enter a domain manually.";
+          results.innerHTML = matches.map(match => `<button type="button" class="logo-search-result" data-domain="${escapeHtml(match.domain)}">
+            <img data-logo-url="${escapeHtml(getLogoUrl(match.domain, 32))}" data-initial="${escapeHtml(getCardInitial(match.name))}" alt="" />
+            <span><strong>${escapeHtml(match.name)}</strong><small>${escapeHtml(match.domain)}</small></span>
+          </button>`).join("");
+          results.hidden = !matches.length;
+          results.querySelectorAll("img").forEach(loadCachedLogoImage);
+          results.querySelectorAll("button").forEach(button => {
+            button.addEventListener("click", () => {
+              if (this._imageUploading) return;
+              input.value = button.dataset.domain;
+              input.dispatchEvent(new Event("input", { bubbles: true }));
+              hide();
+              status.textContent = "Logo selected. Save to link it to this card.";
+              input.focus();
+            });
+          });
+        } catch (error) {
+          if (input.isConnected && generation === requestGeneration) {
+            status.textContent = "Logo search is unavailable. Enter a domain manually.";
+          }
+        }
+      }, 400);
+    });
+    input.addEventListener("keydown", event => {
+      if (event.key === "Escape" && !results.hidden) {
+        event.preventDefault();
+        event.stopPropagation();
+        hide();
+      }
+      if (event.key === "ArrowDown" && !results.hidden) {
+        event.preventDefault();
+        results.querySelector("button")?.focus();
+      }
+    });
+    results.addEventListener("keydown", event => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        hide();
+        input.focus();
+      }
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        const buttons = [...results.querySelectorAll("button")];
+        const index = buttons.indexOf(event.target);
+        buttons[(index + (event.key === "ArrowDown" ? 1 : buttons.length - 1)) % buttons.length]?.focus();
+      }
+    });
+    root.querySelector(`#${prefix}-image-file`).addEventListener("change", hide);
+  }
+
   bindImageUpload(root, prefix) {
     if (!root) return;
     const inputState = this._inputState;
@@ -1360,6 +1463,7 @@ class WalletAssistantCard extends HTMLElement {
     const codeInput = dialog.querySelector("#edit-code");
     const logoSlugInput = dialog.querySelector("#edit-logo-slug");
     this.bindImageUpload(dialog, "edit");
+    this.bindLogoSearch(dialog, "edit");
     const typeSelect = dialog.querySelector("#edit-type");
     const syncVoucherFields = () => {
       dialog.querySelector("#edit-voucher-fields").hidden = typeSelect.value !== "voucher";
@@ -1668,7 +1772,7 @@ class WalletAssistantCard extends HTMLElement {
               <h3 class="card-title">${escapeHtml(this.selectedCard.name)}</h3>
             </div>
             <div class="popup-meta">
-              ${typeBadge(this.selectedCard)}
+              ${getItemType(this.selectedCard) !== "loyalty" ? typeBadge(this.selectedCard) : ""}
               ${selectedExpiry ? `<span><ha-icon icon="mdi:calendar-clock"></ha-icon>${escapeHtml(selectedExpiry)}</span>` : ""}
             </div>
             ${selectedNotes ? `<div class="popup-note">${escapeHtml(selectedNotes)}</div>` : ""}
@@ -1790,6 +1894,7 @@ class WalletAssistantCard extends HTMLElement {
     if (this.showAddDialog) {
       const addForm = this.dynamicContainer.querySelector("#add-card-form");
       this.bindImageUpload(addForm, "add");
+      this.bindLogoSearch(addForm, "add");
       addForm?.addEventListener("submit", this.addCard.bind(this));
       this.dynamicContainer.querySelector("#cancel-add-btn")
         ?.addEventListener("click", () => this.closeAddDialog());

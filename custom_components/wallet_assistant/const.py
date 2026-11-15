@@ -34,6 +34,8 @@ CONF_PRICE_WATCH_SERVICES = "price_watch_services"
 CONF_PROMOTION_PLATFORMS = "promotion_platforms"
 # Opt-in (default off): allow https:// image URLs from third-party sites as logos.
 CONF_ALLOW_EXTERNAL_LOGOS = "allow_external_logos"
+CONF_LOGO_DEV_API_KEY = "logo_dev_api_key"
+CONF_LOGO_DEV_SEARCH_KEY = "logo_dev_search_key"
 
 TYPE_LOYALTY = "loyalty"
 TYPE_VOUCHER = "voucher"
@@ -183,6 +185,11 @@ DEFAULT_PROMOTION_PLATFORMS = (
 SUPPORTED_PROMOTION_PLATFORM_IDS = tuple(
     platform["platform_id"] for platform in DEFAULT_PROMOTION_PLATFORMS
 )
+
+
+def get_logo_dev_api_key(options) -> str:
+    """Use the configured publishable key, falling back when it is blank."""
+    return str(options.get(CONF_LOGO_DEV_API_KEY) or "").strip() or LOGO_DEV_PUBLISHABLE_KEY
 
 
 def format_price_watch_services_config(services=DEFAULT_PRICE_WATCH_SERVICES) -> str:

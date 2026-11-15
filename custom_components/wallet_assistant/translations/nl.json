@@ -12,6 +12,8 @@
   },
   "options": {
     "error": {
+      "invalid_logo_dev_api_key": "Voer een openbare Logo.dev API-sleutel in die begint met pk_, of laat dit leeg voor de standaardsleutel.",
+      "invalid_logo_dev_search_key": "Voer een geheime Logo.dev-sleutel in die begint met sk_, of laat dit leeg om zoeken uit te schakelen.",
       "invalid_platform_url": "Ingeschakelde platformen moeten een geldig basisadres hebben.",
       "invalid_price_watch_url": "Voer een geldig sjabloon voor de zoek-URL in met de tijdelijke aanduiding voor de zoekopdracht.",
       "invalid_totp_seed": "Voer een geldige base32-TOTP-sleutel of otpauth-URI 2FA code in.",
@@ -32,7 +34,13 @@
       },
       "logos": {
         "data": {
+          "logo_dev_api_key": "Logo.dev API-sleutel (optioneel)",
+          "logo_dev_search_key": "Geheime Logo.dev-zoeksleutel (optioneel)",
           "allow_external_logos": "Logo's van externe websites toestaan (https://)"
+        },
+        "data_description": {
+          "logo_dev_api_key": "Gebruik je eigen openbare sleutel (pk_...). Laat dit leeg voor de standaardsleutel. De openbare sleutel (pk_...) dient alleen om logoafbeeldingen te laden en kan niet zoeken.",
+          "logo_dev_search_key": "Meld je aan of maak een gratis Community-account op logo.dev. Open daarna https://www.logo.dev/dashboard/api-keys en kopieer je geheime sleutel (sk_...).\n\nSla deze opties op en herlaad het dashboard. Typ bij het toevoegen of bewerken van een kaart minstens 3 tekens van een merknaam in het logoveld en selecteer het gewenste logo en domein.\n\nHome Assistant stuurt de getypte zoektermen naar Logo.dev. Zoeken gebruikt de inbegrepen API-tegoeden van je gratis abonnement; herhaalde zoekopdrachten worden tijdelijk bewaard om verbruik te beperken. Er worden geen betaalde functies gebruikt of automatisch tegoeden gekocht. Als je tegoeden op zijn of zoeken niet beschikbaar is, kun je nog steeds handmatig een domein invoeren. Laat dit veld leeg om suggesties uit te schakelen; bestaande logo's blijven werken."
         },
         "description": "Een logo kan altijd een Logo.dev-domein zijn (lokaal bewaard) of een bestand in je www-map (/local/...). Als je deze optie inschakelt, kan een logo ook het https://-adres van een afbeelding op een willekeurige website zijn.\n\nRisico: telkens wanneer iemand het dashboard opent, downloadt zijn browser die afbeelding rechtstreeks van de externe website. Die website kan het IP-adres, de browser en het tijdstip zien, en de afbeelding kan op elk moment veranderen of verdwijnen. Elke gebruiker die een kaart kan toevoegen of bewerken, kan zo'n adres kiezen. Schakel dit alleen in als je dit risico aanvaardt.",
         "title": "Logo's en afbeeldingen"

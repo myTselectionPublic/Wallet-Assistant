@@ -7,6 +7,8 @@ from homeassistant.helpers import selector
 
 from .const import (
     CONF_ALLOW_EXTERNAL_LOGOS,
+    CONF_LOGO_DEV_API_KEY,
+    CONF_LOGO_DEV_SEARCH_KEY,
     CONF_PROMOTION_PLATFORMS,
     CONF_PRICE_WATCH_SERVICES,
     DOMAIN,
@@ -67,6 +69,12 @@ class WalletAssistantOptionsFlow(config_entries.OptionsFlow):
         self._allow_external_logos = bool(
             config_entry.options.get(CONF_ALLOW_EXTERNAL_LOGOS, False)
         )
+        self._logo_dev_api_key = str(
+            config_entry.options.get(CONF_LOGO_DEV_API_KEY) or ""
+        ).strip()
+        self._logo_dev_search_key = str(
+            config_entry.options.get(CONF_LOGO_DEV_SEARCH_KEY) or ""
+        ).strip()
         self._selected_price_watch_index: int | None = None
         self._selected_platform_index: int | None = None
 
@@ -108,9 +116,25 @@ class WalletAssistantOptionsFlow(config_entries.OptionsFlow):
         )
 
     async def async_step_logos(self, user_input=None):
+        errors = {}
         if user_input is not None:
             self._allow_external_logos = bool(user_input.get(CONF_ALLOW_EXTERNAL_LOGOS))
-            return self._create_options_entry()
+            self._logo_dev_api_key = user_input.get(CONF_LOGO_DEV_API_KEY, "").strip()
+            self._logo_dev_search_key = user_input.get(CONF_LOGO_DEV_SEARCH_KEY, "").strip()
+            if self._logo_dev_api_key and (
+                not self._logo_dev_api_key.startswith("pk_")
+                or len(self._logo_dev_api_key) <= 3
+                or any(char.isspace() for char in self._logo_dev_api_key)
+            ):
+                errors[CONF_LOGO_DEV_API_KEY] = "invalid_logo_dev_api_key"
+            if self._logo_dev_search_key and (
+                not self._logo_dev_search_key.startswith("sk_")
+                or len(self._logo_dev_search_key) <= 3
+                or any(char.isspace() for char in self._logo_dev_search_key)
+            ):
+                errors[CONF_LOGO_DEV_SEARCH_KEY] = "invalid_logo_dev_search_key"
+            if not errors:
+                return self._create_options_entry()
 
         return self.async_show_form(
             step_id="logos",
@@ -120,8 +144,19 @@ class WalletAssistantOptionsFlow(config_entries.OptionsFlow):
                         CONF_ALLOW_EXTERNAL_LOGOS,
                         default=self._allow_external_logos,
                     ): bool,
+                    vol.Optional(
+                        CONF_LOGO_DEV_API_KEY,
+                        description={"suggested_value": self._logo_dev_api_key},
+                    ): str,
+                    vol.Optional(
+                        CONF_LOGO_DEV_SEARCH_KEY,
+                        description={"suggested_value": self._logo_dev_search_key},
+                    ): selector.TextSelector(
+                        selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD)
+                    ),
                 }
             ),
+            errors=errors,
         )
 
     async def async_step_price_watch_services(self, user_input=None):
@@ -243,6 +278,7 @@ class WalletAssistantOptionsFlow(config_entries.OptionsFlow):
         return self.async_show_form(
             step_id="price_watch_service",
             data_schema=vol.Schema(schema),
+            description_placeholders={"query": "{query}"},
             errors=errors,
         )
 
@@ -344,6 +380,8 @@ class WalletAssistantOptionsFlow(config_entries.OptionsFlow):
                 CONF_PRICE_WATCH_SERVICES: self._price_watch_services,
                 CONF_PROMOTION_PLATFORMS: self._promotion_platforms,
                 CONF_ALLOW_EXTERNAL_LOGOS: self._allow_external_logos,
+                CONF_LOGO_DEV_API_KEY: self._logo_dev_api_key,
+                CONF_LOGO_DEV_SEARCH_KEY: self._logo_dev_search_key,
             },
         )
 

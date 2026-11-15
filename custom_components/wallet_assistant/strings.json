@@ -12,6 +12,8 @@
   },
   "options": {
     "error": {
+      "invalid_logo_dev_api_key": "Enter a Logo.dev publishable API key starting with pk_, or leave blank to use the default key.",
+      "invalid_logo_dev_search_key": "Enter a Logo.dev secret key starting with sk_, or leave blank to disable brand search.",
       "invalid_platform_url": "Enabled platforms must include a valid base address.",
       "invalid_price_watch_url": "Enter a valid search URL template that includes the query placeholder.",
       "invalid_totp_seed": "Enter a valid base32 TOTP seed or otpauth URI 2FA code.",
@@ -32,7 +34,13 @@
       },
       "logos": {
         "data": {
+          "logo_dev_api_key": "Logo.dev API key (optional)",
+          "logo_dev_search_key": "Logo.dev search secret key (optional)",
           "allow_external_logos": "Allow logos from external websites (https://)"
+        },
+        "data_description": {
+          "logo_dev_api_key": "Use your own publishable key (pk_...). Leave blank to use the default key. This key is also used by the dashboard and is visible to users.",
+          "logo_dev_search_key": "Sign in or create a free Community account at logo.dev, then open https://www.logo.dev/dashboard/api-keys and copy your secret key (sk_...). The publishable key (pk_...) in the field above only loads logo images and cannot search.\n\nSave these options and reload the dashboard. When adding or editing a card, type at least 3 characters of a brand name in the logo field, then select a matching logo and domain.\n\nTyped search terms are sent to Logo.dev by Home Assistant. The secret key is stored in the integration options and is never sent to dashboard viewers. Searches use your free plan's included API credits; repeated queries are cached to reduce usage. No paid-only features or automatic credit purchases are used. If credits run out or search is unavailable, you can still enter a domain manually. Leave this field blank to disable suggestions; existing logos keep working."
         },
         "description": "Logos can always be a Logo.dev domain (cached locally) or a file in your www folder (/local/...). When you enable this option, a logo can also be the https:// address of an image on any website.\n\nRisk: every time someone opens the dashboard, their browser downloads that image directly from the external website. That website can see their IP address, browser and when the dashboard is opened, and the image can change or disappear at any time. Any user who can add or edit a card can choose such an address. Only enable this if you accept this risk.",
         "title": "Logos and images"

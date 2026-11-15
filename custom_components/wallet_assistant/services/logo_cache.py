@@ -16,6 +16,7 @@ from typing import Callable, Optional
 from urllib.parse import quote
 
 from ..const import (
+    DOMAIN,
     LOGO_ALLOWED_SIZES,
     LOGO_CACHE_DIR,
     LOGO_CACHE_MAX_AGE_SECONDS,
@@ -25,6 +26,7 @@ from ..const import (
     LOGO_MAX_BYTES,
     LOGO_MAX_SIZE,
     LOGO_MIN_SIZE,
+    get_logo_dev_api_key,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -61,10 +63,10 @@ def is_complete_image(data: Optional[bytes]) -> bool:
     return True
 
 
-def logo_dev_url(slug: str, size: int) -> str:
+def logo_dev_url(slug: str, size: int, api_key: str = LOGO_DEV_PUBLISHABLE_KEY) -> str:
     return (
         f"https://img.logo.dev/{quote(slug, safe='')}"
-        f"?token={LOGO_DEV_PUBLISHABLE_KEY}&size={size}&format=webp&retina=true"
+        f"?token={quote(api_key, safe='')}&size={size}&format=webp&retina=true"
     )
 
 
@@ -104,10 +106,12 @@ class LogoCache:
             return cached
 
     async def _async_download(self, slug: str, size: int) -> Optional[bytes]:
+        entries = self.hass.config_entries.async_entries(DOMAIN)
+        api_key = get_logo_dev_api_key(entries[0].options if entries else {})
         session = self._get_session()
         try:
             async with session.get(
-                logo_dev_url(slug, size),
+                logo_dev_url(slug, size, api_key),
                 timeout=_timeout(_FETCH_TIMEOUT_SECONDS),
                 allow_redirects=True,
             ) as response:

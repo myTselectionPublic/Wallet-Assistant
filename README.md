@@ -101,6 +101,12 @@ show_price_watch: false
 
 ## Logos
 
+To use your own Logo.dev API key, open **Settings > Devices & services > Wallet Assistant > Configure > Logos and images** and enter your **publishable key** (`pk_...`). Leave the field blank to use the bundled default key. The key is used for Home Assistant downloads and the dashboard's direct Logo.dev fallback, so it is visible to dashboard users. Reload the dashboard after changing it. Existing cached logos are kept.
+
+For logo suggestions, enter your account's **secret key** (`sk_...`) in the separate **Logo.dev search secret key** field in the same options form, then reload the dashboard. In the add/edit card form, type at least three characters of a brand name to see up to five matching logos and domains. Click a match to fill the logo field, then save the card. You can also use the keyboard: Arrow Down moves into the results, arrow keys move between them, Enter selects, and Escape closes the suggestions.
+
+Search is optional and works with the [free Community plan](https://www.logo.dev/pricing); the publishable key alone cannot search. It calls only Logo.dev's [typeahead Search API](https://www.logo.dev/docs/brand-search/introduction), using the plan's included API credits. The secret key is stored in integration options and used only by Home Assistant, never sent to the dashboard or included in search responses. Repeated queries are cached for 24 hours, typing is debounced, and requests are limited locally. When credits run out or search is unavailable, enter a domain manually; there is no automatic upgrade or credit purchase. Leave the search key blank to disable suggestions. No paid-only brand enrichment or webhook features are integrated.
+
 In the add/edit item popup, use the **Choose photo** image icon next to the logo field to select an image. On mobile, the device picker can also offer the camera, depending on your browser/device. JPEG, PNG, GIF and WebP files up to 10 MB are supported. An uploaded image is previewed and its local path fills the logo field; press **Save** to link it to the card.
 
 Uploads are stored in `<config>/www/wallet_assistant/images/` with generated filenames. The card config stores the corresponding `/local/wallet_assistant/images/...` path in `logo_slug`. As with other Home Assistant `/www/` files, images are served without authentication to anyone who knows the URL. Uploaded files remain on disk when you cancel, replace an image or delete a card; remove unused files from this folder manually.

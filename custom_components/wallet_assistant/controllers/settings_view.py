@@ -8,9 +8,11 @@ from ..const import (
     CONF_PRICE_WATCH_SERVICES,
     DEFAULT_PRICE_WATCH_SERVICES,
     DOMAIN,
+    get_logo_dev_api_key,
     parse_price_watch_services_config,
 )
 from ..services.promotion_platforms import get_promotion_platform_configs
+from ..services.logo_search import get_logo_search_key
 
 
 class WalletAssistantSettingsAPI(HomeAssistantView):
@@ -40,6 +42,8 @@ class WalletAssistantSettingsAPI(HomeAssistantView):
             {
                 "price_watch_services": enabled_services,
                 "allow_external_logos": bool(options.get(CONF_ALLOW_EXTERNAL_LOGOS, False)),
+                "logo_dev_api_key": get_logo_dev_api_key(options),
+                "logo_search_enabled": bool(get_logo_search_key(self.hass)),
                 "promotion_platforms": [
                     platform.public_dict()
                     for platform in get_promotion_platform_configs(self.hass)

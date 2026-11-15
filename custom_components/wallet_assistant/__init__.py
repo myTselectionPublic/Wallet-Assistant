@@ -30,6 +30,7 @@ from .api import (
     WalletAssistantItemAPI,
     WalletAssistantListAPI,
     WalletAssistantLogoAPI,
+    WalletAssistantLogoSearchAPI,
     WalletAssistantPromotionsAPI,
     WalletAssistantPromotionStatusAPI,
     WalletAssistantSettingsAPI,
@@ -102,6 +103,7 @@ async def _async_setup_once(hass: HomeAssistant) -> None:
     # Register fixed paths before /{item_id}.
     hass.http.register_view(WalletAssistantImageAPI(hass))
     hass.http.register_view(WalletAssistantLogoAPI(hass))
+    hass.http.register_view(WalletAssistantLogoSearchAPI(hass))
     hass.http.register_view(WalletAssistantItemAPI(hass))
 
     hass.data[DOMAIN]["setup_complete"] = True

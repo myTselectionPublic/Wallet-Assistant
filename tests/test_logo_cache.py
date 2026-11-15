@@ -83,6 +83,7 @@ def make_hass(directory):
 
     return SimpleNamespace(
         config=SimpleNamespace(path=lambda name: os.path.join(directory, name)),
+        config_entries=SimpleNamespace(async_entries=lambda domain: []),
         async_add_executor_job=executor,
     )
 
@@ -122,7 +123,24 @@ class LogoCacheTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(second, first)
         self.assertEqual(len(session.calls), 1)
         self.assertIn("img.logo.dev/google.com", session.calls[0])
+        self.assertIn(f"token={logo_cache.LOGO_DEV_PUBLISHABLE_KEY}&", session.calls[0])
         self.assertTrue(os.path.exists(cache.cache_file("google.com", 64)))
+
+    async def test_custom_key_changes_and_reset_apply_to_existing_cache_instance(self):
+        options = {"logo_dev_api_key": "  pk_custom  "}
+        self.hass.config_entries.async_entries = lambda domain: [SimpleNamespace(options=options)]
+        session = FakeSession()
+        cache = logo_cache.LogoCache(self.hass, session_factory=lambda: session)
+
+        for key, expected in (
+            ("  pk_custom  ", "pk_custom"),
+            ("pk_replacement", "pk_replacement"),
+            ("  ", logo_cache.LOGO_DEV_PUBLISHABLE_KEY),
+        ):
+            options["logo_dev_api_key"] = key
+            session.response = FakeResponse()
+            self.assertEqual(await cache._async_download("google.com", 64), WEBP)
+            self.assertIn(f"token={expected}&", session.calls[-1])
 
     async def test_falls_back_to_stale_copy_when_logo_dev_is_down(self):
         good = FakeSession()

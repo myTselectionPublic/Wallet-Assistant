@@ -5,6 +5,24 @@ from homeassistant.components.http import HomeAssistantView
 
 from ..const import API_BASE, DOMAIN
 from ..services.logo_cache import LogoCache, normalize_logo_size, normalize_logo_slug
+from ..services.logo_search import LogoSearch
+
+
+class WalletAssistantLogoSearchAPI(HomeAssistantView):
+    """Search brands without disclosing the configured secret key."""
+
+    url = f"{API_BASE}/logo_search"
+    name = "api:wallet_assistant:logo_search"
+    requires_auth = True
+
+    def __init__(self, hass):
+        self.hass = hass
+
+    async def get(self, request):
+        data = self.hass.data.setdefault(DOMAIN, {})
+        if "logo_search" not in data:
+            data["logo_search"] = LogoSearch(self.hass)
+        return self.json(await data["logo_search"].async_search(request.query.get("q")))
 
 
 class WalletAssistantLogoAPI(HomeAssistantView):
