@@ -101,6 +101,10 @@ show_price_watch: false
 
 ## Logos
 
+In the add/edit item popup, use **Take photo** to open your device camera or **Choose photo** to select an existing image. Camera capture depends on your browser/device; desktop browsers may show a file picker. JPEG, PNG, GIF and WebP files up to 10 MB are supported. An uploaded image is previewed and its local path fills the logo field; press **Save** to link it to the card.
+
+Uploads are stored in `<config>/www/wallet_assistant/images/` with generated filenames. The card config stores the corresponding `/local/wallet_assistant/images/...` path in `logo_slug`. As with other Home Assistant `/www/` files, images are served without authentication to anyone who knows the URL. Uploaded files remain on disk when you cancel, replace an image or delete a card; remove unused files from this folder manually.
+
 The logo field of an item (and the optional third column of a price-watch site) accepts:
 
 * a **Logo.dev slug / domain**, e.g. `ikea.com`, or

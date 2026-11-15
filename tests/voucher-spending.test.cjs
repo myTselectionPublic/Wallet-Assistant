@@ -9,6 +9,71 @@ const context = vm.createContext({
   customElements: { get() { return true; } },
   alert(message) { throw new Error(message); },
 });
+
+test('image controls provide separate camera and device pickers', () => {
+  const markup = context.imageUploadControls('add');
+  assert.match(markup, /capture="environment"/);
+  assert.match(markup, /id="add-image-file" type="file" accept="image\/jpeg,image\/png,image\/gif,image\/webp" hidden/);
+  assert.match(markup, /Take photo/);
+  assert.match(markup, /Choose photo/);
+});
+
+function imageUploadFixture() {
+  const elements = new Map();
+  const root = {
+    querySelector(selector) {
+      if (!elements.has(selector)) elements.set(selector, {
+        value: '', disabled: false, hidden: true, listeners: {},
+        addEventListener(name, callback) { this.listeners[name] = callback; },
+        click() { this.clicked = true; },
+      });
+      return elements.get(selector);
+    },
+    querySelectorAll(selector) { return selector.split(', ').map(s => this.querySelector(s)); },
+  };
+  const card = Object.create(context.Card.prototype);
+  card._inputState = { logo_slug: '' };
+  card.dynamicContainer = { querySelector: () => root };
+  card.bindImageUpload(root, 'add');
+  return { card, root };
+}
+
+test('device uploads disable saving and put the returned local path into the card form', async () => {
+  const { card, root } = imageUploadFixture();
+  let finish;
+  const file = { size: 200, type: 'image/png' };
+  card._hass = { fetchWithAuth(url, options) {
+    assert.equal(url, '/api/wallet_assistant/images/upload');
+    assert.equal(options.method, 'POST');
+    assert.equal(options.body, file);
+    return new Promise(resolve => { finish = resolve; });
+  } };
+  root.querySelector('#add-take-photo').listeners.click();
+  assert.equal(root.querySelector('#add-camera-file').clicked, true);
+  const input = root.querySelector('#add-image-file');
+  input.files = [file];
+  const uploading = input.listeners.change();
+  assert.equal(root.querySelector('#save-btn').disabled, true);
+  finish({ ok: true, json: async () => ({ path: '/local/wallet_assistant/images/photo.png' }) });
+  await uploading;
+  assert.equal(root.querySelector('#save-btn').disabled, false);
+  assert.equal(card._inputState.logo_slug, '/local/wallet_assistant/images/photo.png');
+  assert.equal(root.querySelector('#add-logo-slug').value, card._inputState.logo_slug);
+  assert.equal(root.querySelector('#add-image-preview').src, card._inputState.logo_slug);
+  assert.match(root.querySelector('#add-image-status').textContent, /Save to link/);
+});
+
+test('upload errors keep the previous logo and allow retry', async () => {
+  const { card, root } = imageUploadFixture();
+  root.querySelector('#add-logo-slug').value = '/local/previous.png';
+  card._hass = { fetchWithAuth: async () => ({ ok: false, json: async () => ({ error: 'Unsupported image' }) }) };
+  const input = root.querySelector('#add-image-file');
+  input.files = [{ size: 200 }];
+  await input.listeners.change();
+  assert.equal(root.querySelector('#add-logo-slug').value, '/local/previous.png');
+  assert.equal(root.querySelector('#save-btn').disabled, false);
+  assert.match(root.querySelector('#add-image-status').textContent, /Unsupported image/);
+});
 const source = fs.readFileSync(path.join(__dirname, '../src/walletassistant-main.js'), 'utf8')
   .replace(/^\uFEFF/, '')
   .replace(/^import .*;\r?\n/gm, '');

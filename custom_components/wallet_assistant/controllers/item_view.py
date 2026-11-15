@@ -40,7 +40,10 @@ class WalletAssistantItemAPI(HomeAssistantView):
         return self.json({"status": "deleted" if deleted else "not found"})
 
     async def put(self, request, item_id):
-        data = await request.json()
+        try:
+            data = await request.json()
+        except (ValueError, UnicodeError):
+            return self.json({"error": "invalid JSON payload"}, status_code=400)
         user = request["hass_user"]
 
         if not user.id or not item_id:
@@ -65,7 +68,10 @@ class WalletAssistantItemAPI(HomeAssistantView):
         return self.json({"error": "item not found"}, status_code=404)
 
     async def post(self, request, item_id):
-        data = await request.json()
+        try:
+            data = await request.json()
+        except (ValueError, UnicodeError):
+            return self.json({"error": "invalid JSON payload"}, status_code=400)
         if not isinstance(data, dict) or data.get("action") not in ("record_spending", "remove_spending"):
             return self.json({"error": "invalid spending action"}, status_code=400)
         item = await self.storage.get_item_by_id(item_id)

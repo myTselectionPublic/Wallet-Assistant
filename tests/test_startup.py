@@ -28,6 +28,32 @@ def load_definitions(filename, names, namespace):
 
 
 class StartupTests(unittest.IsolatedAsyncioTestCase):
+    async def test_image_folder_is_registered_for_fresh_installations(self):
+        for modern in (True, False):
+            with self.subTest(modern=modern):
+                http = SimpleNamespace(register_static_path=Mock())
+                if modern:
+                    http.async_register_static_paths = AsyncMock()
+                image_directory = Path("config/www/wallet_assistant/images")
+                mkdir = Mock()
+                module = load_definitions("__init__.py", {"_async_register_frontend"}, {
+                    "__file__": str(COMPONENT / "__init__.py"), "Path": Path,
+                    "StaticPathConfig": lambda *args: args,
+                    "FRONTEND_PATH": "/wallet_assistant_static/card.js",
+                    "_ensure_image_directory": mkdir,
+                })
+                hass = SimpleNamespace(
+                    http=http, config=SimpleNamespace(path=lambda *parts: str(Path("config").joinpath(*parts))),
+                    async_add_executor_job=AsyncMock(),
+                )
+                await module._async_register_frontend(hass)
+                hass.async_add_executor_job.assert_awaited_once_with(mkdir, image_directory)
+                if modern:
+                    paths = http.async_register_static_paths.call_args.args[0]
+                    self.assertIn(("/local/wallet_assistant/images", str(image_directory), True), paths)
+                else:
+                    http.register_static_path.assert_any_call("/local/wallet_assistant/images", str(image_directory), True)
+
     async def test_setup_returns_while_refresh_waits_then_dispatches(self):
         started, release = asyncio.Event(), asyncio.Event()
         cache = {"platforms": [{}], "promotions": [{"name": "Benefit"}]}

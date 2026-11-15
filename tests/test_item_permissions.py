@@ -91,6 +91,18 @@ class PermissionTests(unittest.IsolatedAsyncioTestCase):
         view = make_view(None)
         self.assertEqual((await view.put(Request(ADMIN, {"name": "x"}), "i1")).status, 404)
 
+    async def test_binary_or_malformed_payload_returns_400(self):
+        view = make_view(self.item)
+        for method in (view.put, view.post):
+            for error in (ValueError("invalid JSON"), UnicodeDecodeError("utf-8", b"\xff", 0, 1, "invalid")):
+                with self.subTest(method=method.__name__, error=type(error).__name__):
+                    request = Request(OWNER)
+                    request.json.side_effect = error
+                    response = await method(request, "image")
+                    self.assertEqual(response.status, 400)
+                    self.assertEqual(response.data["error"], "invalid JSON payload")
+        view.storage.update_item.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()

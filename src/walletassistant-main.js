@@ -108,6 +108,19 @@ function getCardInitial(name) {
   return String(name || "?").trim().charAt(0).toUpperCase() || "?";
 }
 
+function imageUploadControls(prefix) {
+  return `<div class="image-upload-controls">
+    <div class="button-group">
+      <button type="button" id="${prefix}-take-photo"><ha-icon icon="mdi:camera"></ha-icon> Take photo</button>
+      <button type="button" id="${prefix}-choose-photo"><ha-icon icon="mdi:image"></ha-icon> Choose photo</button>
+    </div>
+    <input id="${prefix}-camera-file" type="file" accept="image/*" capture="environment" hidden />
+    <input id="${prefix}-image-file" type="file" accept="image/jpeg,image/png,image/gif,image/webp" hidden />
+    <span id="${prefix}-image-status" role="status" aria-live="polite"></span>
+    <img id="${prefix}-image-preview" class="uploaded-image-preview" alt="Selected card image" hidden />
+  </div>`;
+}
+
 // Opt-in from the integration options ("Logos and images"); off by default.
 let allowExternalLogos = false;
 
@@ -1047,6 +1060,7 @@ class WalletAssistantCard extends HTMLElement {
   }
 
   closeCard() {
+    this._imageDialog?.close();
     this.selectedCard = null;
     this._pendingSelectedCardId = "";
     this.persistUIState();
@@ -1074,6 +1088,7 @@ class WalletAssistantCard extends HTMLElement {
 
   async addCard(e) {
     e.preventDefault();
+    if (this._imageUploading) return;
     const nameEl = this.shadowRoot.getElementById("add-name") || this.shadowRoot.getElementById("name");
     const codeEl = this.shadowRoot.getElementById("add-code") || this.shadowRoot.getElementById("code");
     const logoSlugEl = this.shadowRoot.getElementById("add-logo-slug") || this.shadowRoot.getElementById("logo-slug");
@@ -1198,6 +1213,87 @@ class WalletAssistantCard extends HTMLElement {
     }
   }
 
+  openCardImage(image) {
+    const source = image?.currentSrc || image?.getAttribute("src");
+    if (!source || !this.selectedCard) return;
+    this._imageDialog?.close();
+    const dialog = document.createElement("dialog");
+    dialog.className = "card-image-dialog";
+    dialog.setAttribute("aria-label", `${this.selectedCard.name} image`);
+    dialog.innerHTML = `
+      <form method="dialog">
+        <button type="submit" class="image-dialog-close" aria-label="Close image" autofocus><ha-icon icon="mdi:close"></ha-icon></button>
+      </form>
+      <img src="${escapeHtml(source)}" alt="${escapeHtml(this.selectedCard.name)}" />
+    `;
+    dialog.addEventListener("click", event => {
+      if (event.target === dialog) dialog.close();
+    });
+    dialog.addEventListener("close", () => {
+      dialog.remove();
+      if (this._imageDialog === dialog) this._imageDialog = null;
+      if (image.isConnected) image.focus();
+    }, { once: true });
+    this.shadowRoot.appendChild(dialog);
+    this._imageDialog = dialog;
+    dialog.showModal();
+  }
+
+  bindImageUpload(root, prefix) {
+    if (!root) return;
+    const inputState = this._inputState;
+    const currentRoot = () => prefix === "add"
+      ? this.dynamicContainer.querySelector("#add-card-form") : root;
+    const sync = (target, message = "") => {
+      if (!target) return;
+      const busy = !!this._imageUploading;
+      target.querySelectorAll(`#${prefix}-take-photo, #${prefix}-choose-photo, #save-btn, #${prefix}-logo-slug`)
+        .forEach(element => { element.disabled = busy; });
+      target.querySelector(`#${prefix}-image-status`).textContent = busy ? "Uploading photo…" : message;
+      const preview = target.querySelector(`#${prefix}-image-preview`);
+      const path = target.querySelector(`#${prefix}-logo-slug`).value;
+      preview.hidden = !path.startsWith("/local/");
+      if (!preview.hidden) preview.src = path;
+      preview.onerror = () => { preview.hidden = true; };
+    };
+    sync(root);
+    root.querySelector(`#${prefix}-logo-slug`).addEventListener("input", () => sync(root));
+    for (const [button, input] of [["take-photo", "camera-file"], ["choose-photo", "image-file"]]) {
+      const fileInput = root.querySelector(`#${prefix}-${input}`);
+      root.querySelector(`#${prefix}-${button}`).addEventListener("click", () => fileInput.click());
+      fileInput.addEventListener("change", async () => {
+        const file = fileInput.files?.[0];
+        if (!file || this._imageUploading) return;
+        fileInput.value = "";
+        if (file.size > 10 * 1024 * 1024) {
+          sync(root, "Image must be 10 MB or smaller.");
+          return;
+        }
+        this._imageUploading = true;
+        sync(root);
+        let message = "";
+        try {
+          const response = await this._hass.fetchWithAuth(`/api/${API_PATH}/images/upload`, {
+            method: "POST", body: file,
+            headers: { "Content-Type": file.type || "application/octet-stream" },
+          });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error || "Unable to upload image.");
+          if (prefix === "add" && this._inputState !== inputState) return;
+          if (prefix === "add") inputState.logo_slug = result.path;
+          const target = currentRoot();
+          if (target) target.querySelector(`#${prefix}-logo-slug`).value = result.path;
+          message = "Photo uploaded. Save to link it to this card.";
+        } catch (error) {
+          message = error?.message || "Unable to upload image. Please try again.";
+        } finally {
+          this._imageUploading = false;
+          sync(currentRoot(), message);
+        }
+      });
+    }
+  }
+
   async updateCard(card) {
     const supportedFormats = [
       "CODE128", "CODE128A", "CODE128B", "CODE128C",
@@ -1222,6 +1318,7 @@ class WalletAssistantCard extends HTMLElement {
             <button id="scan-edit-code" class="inline-icon-button" type="button" title="Scan barcode" aria-label="Scan barcode"><ha-icon icon="mdi:barcode-scan"></ha-icon></button>
           </div>
           <input id="edit-logo-slug" type="text" value="${escapeHtml(card.logo_slug || "")}" placeholder="${escapeHtml(getLogoInputPlaceholder())}" />
+          ${imageUploadControls("edit")}
           <input id="edit-expires-on" type="date" value="${escapeHtml(card.expires_on || "")}" title="Expiry date" aria-label="Expiry date" />
           ${voucherFields("edit", card)}
           <textarea id="edit-notes" rows="3" placeholder="Note (optional)">${escapeHtml(card.notes || "")}</textarea>
@@ -1266,6 +1363,7 @@ class WalletAssistantCard extends HTMLElement {
     const nameInput = dialog.querySelector("#edit-name");
     const codeInput = dialog.querySelector("#edit-code");
     const logoSlugInput = dialog.querySelector("#edit-logo-slug");
+    this.bindImageUpload(dialog, "edit");
     const typeSelect = dialog.querySelector("#edit-type");
     const syncVoucherFields = () => {
       dialog.querySelector("#edit-voucher-fields").hidden = typeSelect.value !== "voucher";
@@ -1304,6 +1402,7 @@ class WalletAssistantCard extends HTMLElement {
       const newName = nameInput.value;
       const newCode = dialog.querySelector("#edit-code").value;
       const newLogoSlug = logoSlugInput.value.trim();
+      if (this._imageUploading) return;
       const newType = typeSelect.value;
       const newExpiresOn = expiresInput.value;
       const newNotes = notesInput.value.trim();
@@ -1566,7 +1665,7 @@ class WalletAssistantCard extends HTMLElement {
             <div class="popup-header">
               <div class="popup-logo-wrap">
                 ${selectedLogoUrl
-                  ? `<img class="card-logo popup-logo" data-logo-url="${escapeHtml(selectedLogoUrl)}" alt="" data-initial="${escapeHtml(selectedInitial)}" loading="lazy" />`
+                  ? `<img class="card-logo popup-logo expandable-card-image" data-logo-url="${escapeHtml(selectedLogoUrl)}" alt="${escapeHtml(this.selectedCard.name)}" role="button" tabindex="0" aria-haspopup="dialog" aria-label="Enlarge card image" title="Enlarge card image" data-initial="${escapeHtml(selectedInitial)}" loading="lazy" />`
                   : `<div class="card-logo-placeholder popup-logo-placeholder">${escapeHtml(selectedInitial)}</div>`}
               </div>
               <h3 class="card-title">${escapeHtml(this.selectedCard.name)}</h3>
@@ -1658,6 +1757,7 @@ class WalletAssistantCard extends HTMLElement {
                 <button type="button" id="scan-add-code" class="inline-icon-button" title="Scan barcode" aria-label="Scan barcode"><ha-icon icon="mdi:barcode-scan"></ha-icon></button>
               </div>
               <input id="add-logo-slug" placeholder="${escapeHtml(getLogoInputPlaceholder())}" value="${escapeHtml(this._inputState.logo_slug || "")}" />
+              ${imageUploadControls("add")}
               <input id="add-expires-on" type="date" aria-label="Expiry date" title="Expiry date" value="${escapeHtml(this._inputState.expires_on || "")}" ${this._inputState.item_type === "voucher" ? "" : "hidden"} />
               ${voucherFields("add", this._inputState)}
               <textarea id="add-notes" rows="3" placeholder="Note (optional)">${escapeHtml(this._inputState.notes || "")}</textarea>
@@ -1693,6 +1793,7 @@ class WalletAssistantCard extends HTMLElement {
 
     if (this.showAddDialog) {
       const addForm = this.dynamicContainer.querySelector("#add-card-form");
+      this.bindImageUpload(addForm, "add");
       addForm?.addEventListener("submit", this.addCard.bind(this));
       this.dynamicContainer.querySelector("#cancel-add-btn")
         ?.addEventListener("click", () => this.closeAddDialog());
@@ -1735,6 +1836,14 @@ class WalletAssistantCard extends HTMLElement {
     }
 
     if (this.selectedCard) {
+      const cardImage = this.dynamicContainer.querySelector(".expandable-card-image");
+      cardImage?.addEventListener("click", () => this.openCardImage(cardImage));
+      cardImage?.addEventListener("keydown", event => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          this.openCardImage(cardImage);
+        }
+      });
       const selectedId = getItemId(this.selectedCard);
       const mode = normalizeDefaultView(this.viewModes[selectedId] || this.selectedCard.default_view);
       const container = this.dynamicContainer.querySelector("#code-preview");

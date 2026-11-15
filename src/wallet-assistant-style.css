@@ -1050,3 +1050,70 @@ ha-icon {
 .close-btn:hover {
 	color: #e00;
 }
+.image-upload-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.image-upload-controls input[hidden],
+.uploaded-image-preview[hidden] {
+  display: none;
+}
+
+.image-upload-controls [role="status"] {
+  font-size: 0.85em;
+}
+
+.uploaded-image-preview {
+  max-width: 100%;
+  max-height: 140px;
+  object-fit: contain;
+  align-self: center;
+  border-radius: 8px;
+}
+
+.expandable-card-image {
+  cursor: zoom-in;
+}
+
+.expandable-card-image:focus-visible {
+  outline: 2px solid var(--primary-color, #03a9f4);
+  outline-offset: 3px;
+}
+
+.card-image-dialog {
+  box-sizing: border-box;
+  width: min(960px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  max-height: calc(100dvh - 32px);
+  padding: 48px 12px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--card-background-color, #fff);
+  color: var(--primary-text-color, #111);
+}
+
+.card-image-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.8);
+}
+
+.card-image-dialog > img {
+  display: block;
+  width: 100%;
+  max-height: calc(100dvh - 104px);
+  object-fit: contain;
+}
+
+.image-dialog-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  padding: 6px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}

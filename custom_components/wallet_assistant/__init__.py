@@ -26,6 +26,7 @@ except ImportError:
     LOVELACE_DATA = "lovelace"
 
 from .api import (
+    WalletAssistantImageAPI,
     WalletAssistantItemAPI,
     WalletAssistantListAPI,
     WalletAssistantLogoAPI,
@@ -98,7 +99,8 @@ async def _async_setup_once(hass: HomeAssistant) -> None:
     hass.http.register_view(WalletAssistantSettingsAPI(hass))
     hass.http.register_view(WalletAssistantPromotionsAPI(hass))
     hass.http.register_view(WalletAssistantPromotionStatusAPI(hass))
-    # Must be registered before the item view: /logo would otherwise match /{item_id}.
+    # Register fixed paths before /{item_id}.
+    hass.http.register_view(WalletAssistantImageAPI(hass))
     hass.http.register_view(WalletAssistantLogoAPI(hass))
     hass.http.register_view(WalletAssistantItemAPI(hass))
 
@@ -116,13 +118,25 @@ async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> Non
 
 async def _async_register_frontend(hass: HomeAssistant) -> None:
     frontend_file = Path(__file__).parent / "frontend" / "wallet-assistant-card.js"
+    image_directory = Path(hass.config.path("www", "wallet_assistant", "images"))
+    await hass.async_add_executor_job(_ensure_image_directory, image_directory)
+    # Register explicitly so uploads also work when www did not exist at HA startup.
+    image_url = "/local/wallet_assistant/images"
     if StaticPathConfig is not None and hasattr(hass.http, "async_register_static_paths"):
         await hass.http.async_register_static_paths(
-            [StaticPathConfig(FRONTEND_PATH, str(frontend_file), True)]
+            [
+                StaticPathConfig(FRONTEND_PATH, str(frontend_file), True),
+                StaticPathConfig(image_url, str(image_directory), True),
+            ]
         )
         return
 
     hass.http.register_static_path(FRONTEND_PATH, str(frontend_file), True)
+    hass.http.register_static_path(image_url, str(image_directory), True)
+
+
+def _ensure_image_directory(directory: Path) -> None:
+    directory.mkdir(parents=True, exist_ok=True)
 
 
 async def _async_register_lovelace_resource(hass: HomeAssistant) -> None:
