@@ -80,6 +80,7 @@ So I started with the Card Wallet code and extended it.
 type: custom:wallet-assistant-card
 ```
 
+
 ### Card options
 
 | Option | Default | Description |
@@ -89,15 +90,15 @@ type: custom:wallet-assistant-card
 
 Each user can also switch the price-watch links on or off with the **Price watch** button in the filter panel (funnel icon). That choice is remembered per user in the browser and takes precedence over `show_price_watch`.
 
-### Editing items of other users
-
-Users can edit and delete only the items they added. Home Assistant **administrators** can edit and delete every item; the item keeps its original owner.
-
 ```yaml
 type: custom:wallet-assistant-card
 card_view_mode: list
 show_price_watch: false
 ```
+
+### Editing items of other users
+
+Users can edit and delete only the items they added. Home Assistant **administrators** can edit and delete every item; the item keeps its original owner.
 
 ### Expiring vouchers overview
 
