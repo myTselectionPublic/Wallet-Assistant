@@ -1096,14 +1096,14 @@ class WalletAssistantCard extends HTMLElement {
     const expiresEl = this.shadowRoot.getElementById("add-expires-on");
     const notesEl = this.shadowRoot.getElementById("add-notes");
     const name = nameEl?.value?.trim();
-    const code = codeEl?.value?.trim();
+    const code = codeEl?.value?.trim() || "";
     const logoSlug = logoSlugEl?.value?.trim() || "";
     const itemType = typeEl?.value || "loyalty";
     const expiresOn = expiresEl?.value || "";
     const notes = notesEl?.value?.trim() || "";
     const balanceFields = readVoucherFields(this.shadowRoot, "add", itemType);
     if (!balanceFields) return;
-    if (!name || !code) return alert("Missing fields");
+    if (!name) return alert("Missing fields");
     if (!confirmLogoChoice(logoSlug)) {
       logoSlugEl?.focus();
       return;
@@ -1462,7 +1462,7 @@ class WalletAssistantCard extends HTMLElement {
         this.selectedCard = normalizeItem({ ...this.selectedCard, ...updatedCard });
 
         const container = this.dynamicContainer.querySelector("#code-preview");
-        if (container) {
+        if (container && this.selectedCard.code?.trim()) {
           const canvas = document.createElement("canvas");
           container.innerHTML = "";
           container.appendChild(canvas);
@@ -1556,6 +1556,7 @@ class WalletAssistantCard extends HTMLElement {
     const selectedInitial = this.selectedCard ? getCardInitial(this.selectedCard.name) : "";
     const selectedExpiry = this.selectedCard?.expires_on ? formatExpiry(this.selectedCard.expires_on) : "";
     const selectedNotes = this.selectedCard?.notes || "";
+    const selectedHasCode = Boolean(this.selectedCard?.code?.trim());
     const priceWatchQuery = (this.filterText || "").trim();
     const showPlatformSearch = priceWatchQuery.length >= PROMOTION_SEARCH_MIN_LENGTH;
     const promotionMatches = showPlatformSearch
@@ -1676,9 +1677,9 @@ class WalletAssistantCard extends HTMLElement {
             </div>
             ${selectedNotes ? `<div class="popup-note">${escapeHtml(selectedNotes)}</div>` : ""}
             ${voucherDetails(this.selectedCard, canManageCard(this.selectedCard, this._hass))}
-            <div class="code" id="code-preview"></div>
+            ${selectedHasCode ? `<div class="code" id="code-preview"></div>` : ""}
             <div class="button-group">
-              <button id="toggle-code"><ha-icon icon="mdi:cached"></ha-icon> QR/Barcode</button>
+              ${selectedHasCode ? `<button id="toggle-code"><ha-icon icon="mdi:cached"></ha-icon> QR/Barcode</button>` : ""}
               ${canManageCard(this.selectedCard, this._hass) ? `
                 <button id="edit"><ha-icon icon="mdi:pencil"></ha-icon> Edit</button>
               ` : ""}
@@ -1753,7 +1754,7 @@ class WalletAssistantCard extends HTMLElement {
               ${itemTypeSwitch("add", this._inputState.item_type || "loyalty")}
               <input id="add-name" placeholder="Name" value="${escapeHtml(this._inputState.name || "")}" />
               <div class="code-input-row">
-                <input id="add-code" placeholder="Code" value="${escapeHtml(this._inputState.code || "")}" />
+                <input id="add-code" placeholder="Code (optional)" value="${escapeHtml(this._inputState.code || "")}" />
                 <button type="button" id="scan-add-code" class="inline-icon-button" title="Scan barcode" aria-label="Scan barcode"><ha-icon icon="mdi:barcode-scan"></ha-icon></button>
               </div>
               <input id="add-logo-slug" placeholder="${escapeHtml(getLogoInputPlaceholder())}" value="${escapeHtml(this._inputState.logo_slug || "")}" />
@@ -1847,9 +1848,9 @@ class WalletAssistantCard extends HTMLElement {
       const selectedId = getItemId(this.selectedCard);
       const mode = normalizeDefaultView(this.viewModes[selectedId] || this.selectedCard.default_view);
       const container = this.dynamicContainer.querySelector("#code-preview");
-      container.innerHTML = "";
+      if (container) container.innerHTML = "";
 
-      if (mode === "qr") {
+      if (container && mode === "qr") {
         const canvas = document.createElement("canvas");
         container.appendChild(canvas);
         QRCode.toCanvas(
@@ -1858,7 +1859,7 @@ class WalletAssistantCard extends HTMLElement {
           { width: 160, margin: 1 },
           (error) => { if (error) console.error("QR generation error:", error); },
         );
-      } else {
+      } else if (container) {
         const canvas = document.createElement("canvas");
         container.appendChild(canvas);
         const fmt = this.selectedCard.format || "CODE128";

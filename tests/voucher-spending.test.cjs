@@ -79,6 +79,66 @@ const source = fs.readFileSync(path.join(__dirname, '../src/walletassistant-main
   .replace(/^import .*;\r?\n/gm, '');
 vm.runInContext(source + '\nglobalThis.Card = WalletAssistantCard;', context);
 
+test('new cards allow empty and whitespace-only codes', async () => {
+  for (const code of ['', '   ', '123456']) {
+    const card = Object.create(context.Card.prototype);
+    const fields = { 'add-name': { value: 'My card' }, 'add-code': { value: code } };
+    const saveButton = { disabled: false };
+    card.shadowRoot = {
+      getElementById: id => fields[id],
+      querySelector: selector => selector.includes('button') ? saveButton : null,
+    };
+    let saved;
+    card._hass = {
+      user: { id: 'owner', name: 'Owner' },
+      async callApi(method, url, data) { saved = data; },
+    };
+    card.loadCards = async () => {};
+    await card.addCard({ preventDefault() {} });
+    assert.equal(saved.name, 'My card');
+    assert.equal(saved.code, code.trim());
+    assert.equal(card.showAddDialog, false);
+    assert.equal(saveButton.disabled, false);
+  }
+});
+
+test('card popup only shows and renders code controls when a code is set', () => {
+  for (const code of ['', '   ', null, undefined, '123456']) {
+    for (const mode of ['barcode', 'qr']) {
+      const card = Object.create(context.Card.prototype);
+      let rendered = 0;
+      context.QRCode = { toCanvas() { rendered++; } };
+      context.JsBarcode = () => { rendered++; };
+      context.HTMLCanvasElement = class {};
+      context.document = { createElement: () => ({}) };
+      card.dynamicContainer = {
+        innerHTML: '',
+        querySelector(selector) {
+          if (selector === '#code-preview' && this.innerHTML.includes('id="code-preview"')) {
+            return { appendChild() {}, innerHTML: '' };
+          }
+          return null;
+        },
+        querySelectorAll: () => [],
+      };
+      card.shadowRoot = {};
+      card.toolbarContainer = { querySelector: () => null };
+      card.ownCards = [];
+      card.otherCards = [];
+      card.viewModes = { c1: mode };
+      card.selectedCard = { item_id: 'c1', name: 'My card', code, user_id: 'owner' };
+      card._hass = { user: { id: 'owner' } };
+      card.render();
+      const hasCode = Boolean(code?.trim());
+      assert.equal(card.dynamicContainer.innerHTML.includes('id="toggle-code"'), hasCode);
+      assert.equal(card.dynamicContainer.innerHTML.includes('id="code-preview"'), hasCode);
+      assert.equal(rendered, hasCode ? 1 : 0);
+      assert.match(card.dynamicContainer.innerHTML, /id="edit"/);
+      assert.match(card.dynamicContainer.innerHTML, /id="close"/);
+    }
+  }
+});
+
 test('vouchers keep their badge while loyalty cards use their original plain label', () => {
   assert.match(context.typeBadge({ item_type: 'voucher' }), /ticket-confirmation-outline.*Voucher/);
   assert.equal(context.typeBadge({ item_type: 'loyalty' }), '<span>Card</span>');
