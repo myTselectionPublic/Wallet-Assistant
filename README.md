@@ -99,6 +99,32 @@ card_view_mode: list
 show_price_watch: false
 ```
 
+### Expiring vouchers overview
+
+The **Expiring vouchers** sensor counts vouchers expiring from today through the next 14 days (inclusive). Its `warning_days` attribute contains this window, and `expiring_vouchers` contains a JSON-compatible list sorted by expiry date. Each entry includes `item_id`, `name`, `owner`, `logo_url`, `expires_on`, `remaining_balance`, and `currency`. The balance is `null` when balance tracking is disabled; the list is empty when no vouchers qualify. These details cover all users' vouchers and do not include voucher codes or spending history.
+
+Add this built-in Markdown card to your dashboard for a compact overview. Replace `sensor.expiring_vouchers` with your actual entity ID if it differs.
+
+When a logo is set, it appears at 24 × 24 pixels next to the voucher name. Local images use their `/local/` path; domain logos load directly from Logo.dev using the configured publishable key because Markdown images cannot use the integration's authenticated logo cache. External HTTPS images follow the **Allow logos from external websites** setting. Missing or disallowed logos have a `null` `logo_url` and leave just the voucher name.
+
+```yaml
+type: markdown
+title: Expiring vouchers
+content: |-
+  {% set vouchers = state_attr('sensor.expiring_vouchers', 'expiring_vouchers') or [] %}
+  {% if vouchers %}
+  Voucher | Owner | Expires | Balance
+  --- | --- | --- | ---
+  {% for voucher in vouchers -%}
+  {% if voucher.logo_url %}<img src="{{ voucher.logo_url | replace('|', '%7C') | e }}" width="24" height="24" alt=""> {% endif %}{{ voucher.name | replace('|', '&#124;') | replace('\n', ' ') }} | {{ voucher.owner | replace('|', '&#124;') | replace('\n', ' ') }} | {{ voucher.expires_on }} | {{ ('%.2f' | format(voucher.remaining_balance)) ~ ' ' ~ voucher.currency if voucher.remaining_balance is not none else '—' }}
+  {% endfor %}
+  {% elif states('sensor.expiring_vouchers') in ['unknown', 'unavailable'] %}
+  Voucher information is currently unavailable.
+  {% else %}
+  No vouchers expire soon.
+  {% endif %}
+```
+
 ## Logos
 
 To use your own Logo.dev API key, open **Settings > Devices & services > Wallet Assistant > Configure > Logos and images** and enter your **publishable key** (`pk_...`). Leave the field blank to use the bundled default key. The key is used for Home Assistant downloads and the dashboard's direct Logo.dev fallback, so it is visible to dashboard users. Reload the dashboard after changing it. Existing cached logos are kept.

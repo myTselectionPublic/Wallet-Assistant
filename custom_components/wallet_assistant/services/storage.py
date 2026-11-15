@@ -95,8 +95,12 @@ class WalletStorage:
         return [item for item in self.items if item.user_id == user_id]
 
     def count_expiring_vouchers(self, days: int) -> int:
+        return len(self.get_expiring_vouchers(days))
+
+    def get_expiring_vouchers(self, days: int) -> List[WalletItem]:
+        """Return vouchers in the warning window, with the soonest expiry first."""
         today = date.today()
-        count = 0
+        expiring = []
         for item in self.items:
             if item.item_type != TYPE_VOUCHER or not item.expires_on:
                 continue
@@ -104,8 +108,8 @@ class WalletStorage:
             if expiry is None:
                 continue
             if 0 <= (expiry - today).days <= days:
-                count += 1
-        return count
+                expiring.append((expiry, item))
+        return [item for _, item in sorted(expiring, key=lambda entry: entry[0])]
 
     async def _save_items(self) -> None:
         async with self._save_lock:

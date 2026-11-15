@@ -134,6 +134,12 @@ DEFAULT_PRICE_WATCH_SERVICES = (
         "logo_slug": "promojagers.be",
         "enabled": True,
     },
+    {
+        "name": "Honey promo codes",
+        "url_template": "https://www.joinhoney.com/nl/shop/{query}",
+        "logo_slug": "joinhoney.com",
+        "enabled": True,
+    },
 )
 
 DEFAULT_PROMOTION_PLATFORMS = (
