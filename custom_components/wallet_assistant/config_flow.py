@@ -138,6 +138,9 @@ class WalletAssistantOptionsFlow(config_entries.OptionsFlow):
 
         return self.async_show_form(
             step_id="logos",
+            description_placeholders={
+                "logo_dev_api_keys_url": "https://www.logo.dev/dashboard/api-keys",
+            },
             data_schema=vol.Schema(
                 {
                     vol.Required(

@@ -1,6 +1,7 @@
 """Logo options and settings API regressions without a Home Assistant install."""
 
 import ast
+import json
 from types import SimpleNamespace
 import unittest
 
@@ -43,6 +44,22 @@ SettingsAPI = load_class(
 
 
 class LogoOptionsTests(unittest.IsolatedAsyncioTestCase):
+    async def test_search_help_uses_supplied_url_placeholder_in_every_translation(self):
+        flow = OptionsFlow(SimpleNamespace(options={}))
+        form = await flow.async_step_logos()
+        placeholders = form["description_placeholders"]
+        self.assertEqual(
+            placeholders["logo_dev_api_keys_url"],
+            "https://www.logo.dev/dashboard/api-keys",
+        )
+        for path in (COMPONENT / "strings.json", *(COMPONENT / "translations").glob("*.json")):
+            with self.subTest(path=path.name):
+                strings = json.loads(path.read_text(encoding="utf-8"))
+                help_text = strings["options"]["step"]["logos"]["data_description"]["logo_dev_search_key"]
+                self.assertNotRegex(help_text, r"https?://")
+                self.assertIn("{logo_dev_api_keys_url}", help_text)
+                self.assertIn(placeholders["logo_dev_api_keys_url"], help_text.format(**placeholders))
+
     async def test_save_reopen_preserve_and_clear_key(self):
         flow = OptionsFlow(SimpleNamespace(options={}))
         saved = await flow.async_step_logos({
