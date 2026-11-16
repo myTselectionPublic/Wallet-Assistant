@@ -1581,8 +1581,7 @@ class WalletAssistantCard extends HTMLElement {
   }
 
   render() {
-    const cardListEl = this.dynamicContainer.querySelector(".cardlist");
-    const scrollPosition = cardListEl ? cardListEl.scrollTop : 0;
+    const scrollPosition = this.dynamicContainer.scrollTop;
     const previousFocusedElement = this.shadowRoot.activeElement;
     const previousFocusedId = previousFocusedElement?.id;
     const previousSelectionStart = previousFocusedElement?.selectionStart;
@@ -2002,8 +2001,7 @@ class WalletAssistantCard extends HTMLElement {
       }
     }
 
-    const newCardListEl = this.dynamicContainer.querySelector(".cardlist");
-    if (newCardListEl) newCardListEl.scrollTop = scrollPosition;
+    this.dynamicContainer.scrollTop = scrollPosition;
 
     if (previousFocusedId === "filter" && filterInput) {
       filterInput.focus();

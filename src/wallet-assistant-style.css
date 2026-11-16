@@ -19,7 +19,8 @@
 	flex: 1 1 auto;
 	flex-direction: column;
 	min-height: 0;
-	overflow: hidden;
+	overflow-y: auto;
+	scrollbar-gutter: stable;
 }
 
 .action-row {
@@ -201,11 +202,10 @@ button ha-icon {
 .cardlist {
 	display: flex;
 	flex-direction: column;
-	flex: 0 1 auto;
+	/* Keep complete card rows when promotion results share the viewport. */
+	flex: 0 0 auto;
 	gap: 12px;
 	min-height: 0;
-	overflow-y: auto;
-	scrollbar-gutter: stable;
 }
 
 .cardlist.grid-view {
@@ -555,7 +555,7 @@ ha-icon {
 }
 
 .promotion-results-section {
-	flex: 0 1 auto;
+	flex: 0 0 auto;
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
